@@ -36,6 +36,28 @@ That means:
 
 This is the correct choice for book restoration because a purely browser-first WYSIWYG core would be too fragile for numbering, references, theorem structures, multilingual export, and reproducible LaTeX output.
 
+## Persistence Contract
+
+The final handoff package must explicitly distinguish:
+
+1. **canonical persistence**
+   - canonical AST
+   - document settings
+   - provenance/review metadata
+   - exported artifacts and diagnostics
+
+2. **secondary or recovery persistence**
+   - Tiptap JSON snapshots used only for hydration, recovery, or debugging
+
+Tiptap JSON may be stored as a recovery-oriented artifact, but it must never replace canonical AST as the durable semantic source of truth.
+
+The handoff package must also define:
+
+- when editor state is projected into canonical AST
+- when canonical AST is persisted
+- when Tiptap snapshots are optionally persisted
+- which recovery paths rebuild the editor from canonical AST versus Tiptap snapshots
+
 ## Approved Design Rules
 
 1. **User experience rule**  
@@ -72,6 +94,7 @@ The final system should be documented as four cooperating layers inside the sing
    - live editor instance
    - custom nodes, marks, commands, plugins, and node views
    - translation between editor gestures and editor-core commands
+   - translation of editor transactions, selection changes, and content events back into editor-core notifications
 
 3. **Editor-core + canonical AST**
    - canonical semantic model
@@ -85,6 +108,19 @@ The final system should be documented as four cooperating layers inside the sing
    - compile loop
    - PDF/live preview generation
    - diagnostics and source/editor/render correlation
+
+### Live preview architecture
+
+The handoff package should explicitly assume a two-surface render model inside the Next.js monolith:
+
+1. a **primary live editing surface** that remains Tiptap-based and visually coherent while the user types
+2. a **rendered preview surface** fed by the LaTeX compile pipeline and shown through a PDF/document preview pane
+
+The preview does not replace the live editor. Instead:
+
+- the editor remains fast and interactive
+- the preview remains the authority for pixel-focused LaTeX fidelity
+- the implementation must define refresh behavior, stale-state indicators, and diagnostics when the preview lags or compilation fails
 
 ## Final Handoff Package Structure
 
@@ -128,6 +164,8 @@ It must answer:
 - how diagnostics map back to source/editor structures
 - how the revealable LaTeX panel behaves
 
+It must also consume an **interface-stable AST contract** from the canonical AST package rather than assuming that all implementation detail is permanently frozen before serializer work begins.
+
 ### 3. Verification and visual parity package
 
 This package defines how the full system is validated as a restoration-quality engine.
@@ -147,6 +185,20 @@ It must answer:
 - which fixtures prove correctness
 - which regressions block release
 
+## Cross-Package Contract Rules
+
+The three workstreams are sequential, but they must be coordinated by explicit interface contracts:
+
+1. the **AST package** must define interface-stable node, settings, and invariant contracts before LaTeX/render implementation begins
+2. the **LaTeX/live-render package** may reveal design pressure that requires controlled AST refinement, but not uncontrolled architectural drift
+3. the **verification package** must validate the agreed interfaces across both earlier packages rather than inventing its own model
+
+So "AST first" should be interpreted as:
+
+- semantic ownership is fixed first
+- interface contracts are fixed first
+- implementation may still refine details where downstream evidence requires it, but without reopening the foundational ownership boundaries
+
 ## Execution Order
 
 The coding agent should execute these packages in this order:
@@ -157,7 +209,7 @@ The coding agent should execute these packages in this order:
 
 This order ensures that:
 
-- the semantic model is fixed before serializer work
+- the semantic ownership and interface contracts are fixed before serializer work
 - serializer and preview architecture are fixed before parity tests are finalized
 - the coding agent inherits explicit ownership boundaries rather than inventing them while implementing
 
@@ -177,6 +229,7 @@ The handoff package should require visual validation at four levels:
 - live rendered document view behavior
 - representative fixtures for headings, theorem structures, math, tables, captions, multilingual content, and references
 - checks that visually important structures survive editing and rendering
+- explicit validation of the preview surface behavior, including refresh timing, stale indicators, and compile-failure states
 
 ### 3. Source/debug validation
 
