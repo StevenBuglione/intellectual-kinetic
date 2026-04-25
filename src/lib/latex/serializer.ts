@@ -25,6 +25,7 @@ export function serializeCanonicalDocumentToLatex(
     `% Generated deterministically from canonical AST ${document.id}`,
     `\\documentclass{${document.settings.documentClass}}`,
     ...document.settings.modules.map((moduleName) => `\\usepackage{${moduleName}}`),
+    "\\newtheorem{theorem}{Theorem}",
     "\\begin{document}",
     "",
     ...document.blocks.flatMap((block) => serializeBlock(block, labels, diagnostics)),

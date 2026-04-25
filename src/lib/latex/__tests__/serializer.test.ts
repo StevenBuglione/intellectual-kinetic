@@ -9,6 +9,7 @@ describe("deterministic LaTeX serializer", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.source).toContain("\\documentclass{book}");
     expect(result.source).toContain("\\usepackage{amsmath}");
+    expect(result.source).toContain("\\newtheorem{theorem}{Theorem}");
     expect(result.source).toContain("\\chapter{A Treatise on Motion}");
     expect(result.source).toContain("Let \\(v\\) denote velocity and cite \\cite{newton1687}.");
     expect(result.source).toContain("\\begin{theorem}\\label{thm:motion}");

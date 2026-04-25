@@ -21,6 +21,8 @@ Without `DATABASE_URL`, the app uses the built-in restoration fixture in memory.
 docker compose up --build
 ```
 
+The Compose app image includes a local LaTeX toolchain for server-side PDF preview compilation.
+
 Compose starts:
 
 - `app` - the single Next.js monolith

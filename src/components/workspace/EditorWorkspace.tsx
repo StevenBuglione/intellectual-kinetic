@@ -11,17 +11,28 @@ import TextAlign from "@tiptap/extension-text-align";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
+  AlignLeft,
+  Bold,
   Braces,
   CheckCircle2,
   Code2,
   Columns3,
+  FileCode2,
   FileText,
   Highlighter,
+  Italic,
+  Link,
+  List,
+  PanelLeftOpen,
   PanelRightOpen,
+  Printer,
+  Redo2,
   Save,
+  Undo2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
+import type { CanonicalDocument } from "@/lib/editor-core/types";
+import type { LatexCompileResult } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
 import {
   canonicalToTiptapDocument,
@@ -55,7 +66,11 @@ const MathInline = Node.create({
 export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [document, setDocument] = useState(initialDocument);
   const [sourceOpen, setSourceOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [compileState, setCompileState] = useState<"idle" | "compiling" | "compiled" | "failed">("idle");
+  const [compiledPreview, setCompiledPreview] = useState<LatexCompileResult | null>(null);
   const latex = useMemo(() => serializeCanonicalDocumentToLatex(document), [document]);
 
   const editor = useEditor({
@@ -78,7 +93,8 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     content: canonicalToTiptapDocument(document),
     editorProps: {
       attributes: {
-        class: "ik-editor-prose",
+        class: "ik-doc-editor-page",
+        "aria-label": "Google Docs-style document page",
       },
     },
     onUpdate({ editor: activeEditor }) {
@@ -89,6 +105,8 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
           blocks: patch.blocks,
           updatedAt: new Date().toISOString(),
         }));
+        setCompiledPreview(null);
+        setCompileState("idle");
       }
     },
   });
@@ -111,105 +129,200 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     }
   }
 
+  async function openPdfPreview() {
+    setPdfOpen(true);
+    if (compiledPreview || compileState === "compiling" || typeof fetch === "undefined") {
+      return;
+    }
+
+    setCompileState("compiling");
+    try {
+      const response = await fetch("/api/latex/preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ document }),
+      });
+      const result = (await response.json()) as LatexCompileResult;
+      setCompiledPreview(result);
+      setCompileState(result.status === "compiled" ? "compiled" : "failed");
+    } catch (error) {
+      setCompiledPreview({
+        status: "failed",
+        artifactName: `${document.id}-preview.pdf`,
+        log: error instanceof Error ? error.message : "Failed to compile PDF preview.",
+        diagnostics: [
+          {
+            severity: "error",
+            code: "preview-request-failed",
+            message: "The browser could not request the PDF preview.",
+          },
+        ],
+      });
+      setCompileState("failed");
+    }
+  }
+
   return (
-    <main className="ik-shell">
-      <header className="ik-topbar">
-        <div>
-          <p className="ik-kicker">Intellectual Kinetic</p>
-          <h1>{document.title}</h1>
-        </div>
-        <div className="ik-topbar-actions">
-          <span className="ik-status-chip">
-            <CheckCircle2 size={16} />
-            AST source of truth
-          </span>
-          {saveState !== "idle" ? (
-            <span className="ik-save-state" aria-live="polite">
-              {saveState === "saving" ? "Saving" : "Saved"}
+    <main className="ik-doc-shell">
+      <header className="ik-doc-chrome">
+        <div className="ik-doc-titlebar">
+          <div className="ik-doc-badge">
+            <FileText size={22} />
+          </div>
+          <div className="ik-doc-title-stack">
+            <input aria-label="Document title" value={document.title} readOnly />
+            <nav aria-label="Document menu" role="menubar" className="ik-doc-menubar">
+              {["File", "Edit", "View", "Insert", "Format", "Tools", "Review", "Help"].map((item) => (
+                <button key={item} role="menuitem" type="button">
+                  {item}
+                </button>
+              ))}
+            </nav>
+          </div>
+          <div className="ik-doc-actions">
+            <span className="ik-status-chip">
+              <CheckCircle2 size={16} />
+              AST source of truth
             </span>
-          ) : null}
-          <button className="ik-icon-button" type="button" onClick={saveDocument} aria-label="Save document">
-            <Save size={18} />
+            {saveState !== "idle" ? (
+              <span className="ik-save-state" aria-live="polite">
+                {saveState === "saving" ? "Saving" : "Saved"}
+              </span>
+            ) : null}
+            <button className="ik-doc-action-button" type="button" onClick={saveDocument}>
+              <Save size={17} />
+              Save
+            </button>
+          </div>
+        </div>
+
+        <div className="ik-doc-toolbar" role="toolbar" aria-label="Formatting toolbar">
+          <button type="button" className="ik-doc-icon" aria-label="Undo" onClick={() => editor?.chain().focus().undo().run()}>
+            <Undo2 size={16} />
           </button>
-          <button
-            className="ik-secondary-button"
-            type="button"
-            onClick={() => setSourceOpen((open) => !open)}
-          >
-            <PanelRightOpen size={17} />
+          <button type="button" className="ik-doc-icon" aria-label="Redo" onClick={() => editor?.chain().focus().redo().run()}>
+            <Redo2 size={16} />
+          </button>
+          <button type="button" className="ik-doc-icon" aria-label="Print">
+            <Printer size={16} />
+          </button>
+          <span className="ik-doc-divider" />
+          <button type="button" className="ik-doc-select">
+            100%
+          </button>
+          <button type="button" className="ik-doc-select">
+            Normal text
+          </button>
+          <button type="button" className="ik-doc-select">
+            Inter
+          </button>
+          <button type="button" className="ik-doc-size">
+            11
+          </button>
+          <span className="ik-doc-divider" />
+          <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().toggleBold().run()} aria-label="Bold">
+            <Bold size={16} />
+          </button>
+          <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().toggleItalic().run()} aria-label="Italic">
+            <Italic size={16} />
+          </button>
+          <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().toggleHighlight?.().run()} aria-label="Highlight">
+            <Highlighter size={16} />
+          </button>
+          <button type="button" className="ik-doc-icon" aria-label="Link">
+            <Link size={16} />
+          </button>
+          <span className="ik-doc-divider" />
+          <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().toggleBulletList().run()} aria-label="Bulleted list">
+            <List size={16} />
+          </button>
+          <button type="button" className="ik-doc-icon" aria-label="Align left">
+            <AlignLeft size={16} />
+          </button>
+          <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} aria-label="Math block">
+            <Braces size={16} />
+          </button>
+          <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run()} aria-label="Insert table">
+            <Columns3 size={16} />
+          </button>
+          <span className="ik-doc-divider" />
+          <button className="ik-doc-panel-button" type="button" onClick={() => setReviewOpen((open) => !open)}>
+            <PanelLeftOpen size={16} />
+            Review
+          </button>
+          <button className="ik-doc-panel-button" type="button" onClick={openPdfPreview}>
+            <FileCode2 size={16} />
+            PDF preview
+          </button>
+          <button className="ik-doc-panel-button" type="button" onClick={() => setSourceOpen((open) => !open)}>
+            <PanelRightOpen size={16} />
             {sourceOpen ? "Hide source" : "Show source"}
           </button>
         </div>
       </header>
 
-      <section className={sourceOpen ? "ik-workspace ik-workspace-source-open" : "ik-workspace"}>
-        <aside className="ik-source-review" aria-label="Source review">
-          <div className="ik-panel-title">
-            <FileText size={18} />
-            Source regions
-          </div>
-          {document.blocks.map((block) => (
-            <button className="ik-region" key={block.id} type="button">
-              <span>{block.provenance?.sourceRegionId ?? block.id}</span>
-              <strong>{Math.round((block.provenance?.confidence ?? 0.75) * 100)}%</strong>
-            </button>
-          ))}
-        </aside>
+      <section
+        className={[
+          "ik-doc-workspace",
+          reviewOpen ? "ik-doc-workspace-review-open" : "",
+          pdfOpen ? "ik-doc-workspace-preview-open" : "",
+          sourceOpen ? "ik-doc-workspace-source-open" : "",
+        ].join(" ")}
+      >
+        {reviewOpen ? (
+          <aside className="ik-doc-side-panel" aria-label="Source review">
+            <div className="ik-panel-title">
+              <FileText size={18} />
+              Source regions
+            </div>
+            {document.blocks.map((block) => (
+              <button className="ik-region" key={block.id} type="button">
+                <span>{block.provenance?.sourceRegionId ?? block.id}</span>
+                <strong>{Math.round((block.provenance?.confidence ?? 0.75) * 100)}%</strong>
+              </button>
+            ))}
+          </aside>
+        ) : null}
 
-        <section className="ik-document-column" aria-label="Document editor">
-          <div className="ik-toolbar" aria-label="Editor toolbar">
-            <button type="button" className="ik-tool" onClick={() => editor?.chain().focus().toggleBold().run()} aria-label="Bold">
-              <strong>B</strong>
-            </button>
-            <button type="button" className="ik-tool" onClick={() => editor?.chain().focus().toggleItalic().run()} aria-label="Italic">
-              <em>I</em>
-            </button>
-            <button type="button" className="ik-tool" onClick={() => editor?.chain().focus().toggleHighlight?.().run()} aria-label="Highlight">
-              <Highlighter size={17} />
-            </button>
-            <button type="button" className="ik-tool" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} aria-label="Math block">
-              <Braces size={17} />
-            </button>
-            <button type="button" className="ik-tool" onClick={() => editor?.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run()} aria-label="Insert table">
-              <Columns3 size={17} />
-            </button>
+        <section className="ik-doc-canvas" aria-label="Document editor">
+          <div className="ik-doc-ruler" aria-label="Document ruler">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
           </div>
-          <div className="ik-editor-surface">
-            <EditorContent editor={editor} />
-          </div>
+          <EditorContent editor={editor} />
         </section>
 
-        <aside className="ik-preview-panel" aria-label="Live LaTeX preview">
-          <div className="ik-panel-title">
-            <Code2 size={18} />
-            Live preview
-          </div>
-          <div className="ik-preview-page">
-            {document.blocks.map((block) => {
-              if (block.type === "heading") {
-                return <h2 key={block.id}>{plainText(block.children)}</h2>;
-              }
-
-              if (block.type === "theorem") {
-                return (
-                  <blockquote key={block.id}>
-                    <strong>{block.theoremKind}.</strong> {plainText(block.children)}
-                  </blockquote>
-                );
-              }
-
-              if (block.type === "math_display") {
-                return <pre key={block.id}>{block.tex}</pre>;
-              }
-
-              return <p key={block.id}>{plainText(block.children)}</p>;
-            })}
-          </div>
-          <p className="ik-diagnostic-count">{latex.diagnostics.length} diagnostics</p>
-        </aside>
+        {pdfOpen ? (
+          <aside className="ik-doc-side-panel ik-doc-pdf-panel" aria-label="PDF preview">
+            <div className="ik-panel-title">
+              <FileCode2 size={18} />
+              PDF preview
+            </div>
+            {compileState === "compiled" && compiledPreview?.pdfBase64 ? (
+              <iframe
+                title="Compiled PDF preview"
+                src={`data:application/pdf;base64,${compiledPreview.pdfBase64}`}
+              />
+            ) : (
+              <div className="ik-pdf-placeholder">
+                <FileCode2 size={28} />
+                <p>{compileState === "compiling" ? "Compiling PDF preview" : "Compile PDF preview"}</p>
+                {compileState === "failed" ? <span>Compilation diagnostics are available below.</span> : null}
+              </div>
+            )}
+            <p className="ik-diagnostic-count">
+              {(compiledPreview?.diagnostics.length ?? latex.diagnostics.length)} diagnostics
+            </p>
+          </aside>
+        ) : null}
 
         {sourceOpen ? (
-          <aside className="ik-source-panel" aria-label="Generated LaTeX source">
+          <aside className="ik-doc-side-panel ik-source-panel" aria-label="Generated LaTeX source">
             <div className="ik-panel-title">
               <Code2 size={18} />
               Generated LaTeX
@@ -225,15 +338,4 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       </section>
     </main>
   );
-}
-
-function plainText(children: CanonicalInline[]) {
-  return children
-    .map((child) => {
-      if (child.type === "text") return child.text;
-      if (child.type === "math_inline") return `(${child.tex})`;
-      if (child.type === "citation") return `@${child.key}`;
-      return child.target;
-    })
-    .join("");
 }

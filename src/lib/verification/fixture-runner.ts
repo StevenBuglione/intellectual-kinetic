@@ -1,5 +1,6 @@
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { validateCanonicalDocument } from "@/lib/editor-core/canonical-document";
+import { compileCanonicalDocumentToPdf } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
 import { canonicalToTiptapDocument } from "@/lib/tiptap-adapter/projection";
 
@@ -14,8 +15,8 @@ export type FixtureVerificationReport = {
 
 const fixtures = [restorationFoundationFixture];
 
-export function runParityFixtureVerification(): FixtureVerificationReport {
-  const fixtureReports = fixtures.map((fixture) => {
+export async function runParityFixtureVerification(): Promise<FixtureVerificationReport> {
+  const fixtureReports = await Promise.all(fixtures.map(async (fixture) => {
     const checks: string[] = [];
     const errors: string[] = [];
 
@@ -40,12 +41,19 @@ export function runParityFixtureVerification(): FixtureVerificationReport {
       errors.push("LaTeX serialization failed or produced diagnostics.");
     }
 
+    const pdf = await compileCanonicalDocumentToPdf(fixture);
+    if (pdf.status === "compiled" && pdf.pdfBase64?.startsWith("JVBER")) {
+      checks.push("pdf-compilation");
+    } else {
+      errors.push("PDF compilation failed.");
+    }
+
     return {
       id: fixture.id,
       checks,
       errors,
     };
-  });
+  }));
 
   return {
     status: fixtureReports.every((fixture) => fixture.errors.length === 0) ? "passed" : "failed",

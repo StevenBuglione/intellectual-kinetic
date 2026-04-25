@@ -4,6 +4,7 @@ services:
       context: .
     environment:
       DATABASE_URL: postgres://intellectual_kinetic:intellectual_kinetic@postgres:5432/intellectual_kinetic
+      IK_ARTIFACT_ROOT: /var/lib/intellectual-kinetic/artifacts
       NODE_ENV: production
     ports:
       - "3000:3000"
