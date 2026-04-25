@@ -1,1 +1,346 @@
 @import "tailwindcss";
+
+:root {
+  --ik-background: #101415;
+  --ik-surface-lowest: #0b0f10;
+  --ik-surface-low: #191c1e;
+  --ik-surface: #1d2022;
+  --ik-surface-high: #272a2c;
+  --ik-surface-highest: #323537;
+  --ik-on-surface: #e0e3e5;
+  --ik-on-muted: #c6c6cd;
+  --ik-outline: #45464d;
+  --ik-outline-strong: #909097;
+  --ik-primary: #3b82f6;
+  --ik-primary-soft: rgba(59, 130, 246, 0.16);
+  --ik-success: #10b981;
+  --ik-warning: #f59e0b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ik-background);
+  color: var(--ik-on-surface);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.ik-shell {
+  min-height: 100vh;
+  background: var(--ik-background);
+}
+
+.ik-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--ik-outline);
+  background: rgba(16, 20, 21, 0.94);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.ik-topbar h1 {
+  margin: 6px 0 0;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.ik-kicker {
+  margin: 0;
+  color: var(--ik-on-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ik-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ik-status-chip,
+.ik-secondary-button,
+.ik-icon-button,
+.ik-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid var(--ik-outline);
+  color: var(--ik-on-surface);
+  background: var(--ik-surface-high);
+  border-radius: 999px;
+}
+
+.ik-status-chip {
+  padding: 0 14px;
+  color: #b8f4d7;
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.28);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ik-save-state {
+  color: var(--ik-on-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ik-secondary-button {
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.ik-icon-button,
+.ik-tool {
+  width: 38px;
+  cursor: pointer;
+}
+
+.ik-secondary-button:hover,
+.ik-icon-button:hover,
+.ik-tool:hover {
+  border-color: var(--ik-outline-strong);
+  background: var(--ik-surface-highest);
+}
+
+.ik-workspace {
+  display: grid;
+  grid-template-columns: 260px minmax(480px, 1fr) 320px;
+  gap: 16px;
+  min-height: calc(100vh - 81px);
+  padding: 16px;
+}
+
+.ik-workspace-source-open {
+  grid-template-columns: 240px minmax(420px, 1fr) 300px minmax(320px, 0.72fr);
+}
+
+.ik-source-review,
+.ik-preview-panel,
+.ik-source-panel {
+  min-width: 0;
+  border: 1px solid var(--ik-outline);
+  border-radius: 8px;
+  background: var(--ik-surface-low);
+  padding: 14px;
+  overflow: auto;
+}
+
+.ik-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--ik-on-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ik-region {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 11px 12px;
+  border: 1px solid var(--ik-outline);
+  border-radius: 8px;
+  color: var(--ik-on-surface);
+  background: var(--ik-surface);
+  cursor: pointer;
+  text-align: left;
+}
+
+.ik-region strong {
+  color: #b8f4d7;
+}
+
+.ik-document-column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ik-outline);
+  border-radius: 8px;
+  background: var(--ik-surface);
+  overflow: hidden;
+}
+
+.ik-toolbar {
+  position: sticky;
+  top: 81px;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--ik-outline);
+  background: var(--ik-surface-high);
+}
+
+.ik-editor-surface {
+  flex: 1;
+  padding: 32px 24px;
+  overflow: auto;
+}
+
+.ik-editor-prose {
+  width: min(100%, 820px);
+  min-height: 920px;
+  margin: 0 auto;
+  padding: 58px 66px;
+  border: 1px solid rgba(144, 144, 151, 0.28);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #111827;
+  outline: none;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+}
+
+.ik-editor-prose h1,
+.ik-editor-prose h2,
+.ik-editor-prose h3 {
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.ik-editor-prose p,
+.ik-editor-prose li,
+.ik-preview-page p {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.ik-editor-prose blockquote {
+  margin: 24px 0;
+  padding: 14px 18px;
+  border-left: 4px solid #3b82f6;
+  background: #eff6ff;
+  color: #172554;
+}
+
+.ik-editor-prose pre,
+.ik-preview-page pre {
+  overflow: auto;
+  padding: 14px;
+  border-radius: 8px;
+  background: #111827;
+  color: #f8fafc;
+}
+
+.ik-math-inline {
+  padding: 1px 5px;
+  border-radius: 6px;
+  color: #1d4ed8;
+  background: #dbeafe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.ik-preview-page {
+  min-height: 460px;
+  padding: 22px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #111827;
+}
+
+.ik-preview-page h2 {
+  margin-top: 0;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.ik-preview-page blockquote {
+  margin: 20px 0;
+  padding: 12px 14px;
+  border-left: 4px solid #3b82f6;
+  background: #eff6ff;
+}
+
+.ik-diagnostic-count {
+  margin: 12px 0 0;
+  color: var(--ik-on-muted);
+  font-size: 13px;
+}
+
+.ik-source-panel pre {
+  display: grid;
+  gap: 2px;
+  overflow: auto;
+  min-height: 520px;
+  margin: 0;
+  padding: 16px;
+  border-radius: 8px;
+  background: #070a0b;
+  color: #d8e2ff;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.ik-source-panel span {
+  white-space: pre;
+}
+
+@media (max-width: 1180px) {
+  .ik-workspace,
+  .ik-workspace-source-open {
+    grid-template-columns: 1fr;
+  }
+
+  .ik-source-review,
+  .ik-preview-panel,
+  .ik-source-panel {
+    max-height: none;
+  }
+
+  .ik-toolbar {
+    top: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .ik-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ik-workspace {
+    padding: 10px;
+  }
+
+  .ik-editor-surface {
+    padding: 16px 10px;
+  }
+
+  .ik-editor-prose {
+    min-height: 640px;
+    padding: 32px 22px;
+  }
+}

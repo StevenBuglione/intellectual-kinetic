@@ -1,22 +1,31 @@
-This is the initial [Next.js](https://nextjs.org) TypeScript monolith scaffold for Intellectual Kinetic, bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Intellectual Kinetic
+
+Intellectual Kinetic is a working Next.js monolith slice for AST-first book restoration. The app renders a Google Docs-like Tiptap editing workspace, keeps canonical AST as the durable semantic model, generates deterministic LaTeX from that AST, and exposes a revealable source/debug panel.
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies and run the development server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the scaffold.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
+Without `DATABASE_URL`, the app uses the built-in restoration fixture in memory. With Docker Compose, canonical AST persistence is stored in Postgres and survives restarts.
+
+## Docker Compose
+
+```bash
+docker compose up --build
+```
+
+Compose starts:
+
+- `app` - the single Next.js monolith
+- `postgres` - durable metadata and canonical AST persistence
+- named volumes for Postgres and inspectable artifact storage
 
 ## Available Scripts
 
@@ -24,3 +33,6 @@ You can start editing the page by modifying `src/app/page.tsx`. The page auto-up
 - `npm run build` - build the production app
 - `npm run start` - start the production server after build
 - `npm run lint` - run ESLint
+- `npm run typecheck` - run TypeScript verification
+- `npm run test` - run Vitest regression tests
+- `npm run verify:fixtures` - run the initial fixture-driven parity check

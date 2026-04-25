@@ -1,0 +1,7 @@
+.git
+.next
+.worktrees
+.ref
+node_modules
+npm-debug.log
+docs/references/images

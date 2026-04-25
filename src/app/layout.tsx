@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Intellectual Kinetic",
-  description: "Server-side Next.js monolith scaffold for Intellectual Kinetic.",
+  description:
+    "AST-first book restoration workspace with Tiptap editing and deterministic LaTeX preview.",
 };
 
 export default function RootLayout({
