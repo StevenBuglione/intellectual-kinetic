@@ -20,7 +20,7 @@ That shape is acceptable for early ideation, but it does not scale to a large sy
 
 1. Create a `docs/` hierarchy that scales across many features and subsystems.
 2. Make folder names communicate the **type of artifact** they contain.
-3. Preserve root-level discoverability with lightweight entrypoint files.
+3. Preserve root-level discoverability without keeping canonical design and planning documents in the root.
 4. Separate canonical specs, implementation plans, and verification plans.
 5. Provide a naming scheme that remains readable as the project grows.
 6. Make it obvious where new artifacts should be added.
@@ -28,8 +28,8 @@ That shape is acceptable for early ideation, but it does not scale to a large sy
 ## Non-Goals
 
 1. This spec does not define the application source-code layout.
-2. This spec does not fully migrate all existing legacy docs immediately.
-3. This spec does not require every historical note to be normalized before implementation starts.
+2. This spec does not require every historical note or future ad hoc note to be normalized immediately.
+3. This spec does not define the full contents of every future spec, plan, or verification artifact.
 
 ## Canonical Documentation Hierarchy
 
@@ -56,8 +56,21 @@ docs/
     integrations/
     operations/
   decisions/
+    product/
+    architecture/
+    features/
+    integrations/
+    operations/
   research/
+    product/
+    architecture/
+    features/
+    integrations/
+    operations/
   references/
+    design/
+    source-material/
+    images/
 ```
 
 ## Organizational Principle
@@ -110,22 +123,47 @@ These plans should describe test coverage, environment checks, workflow validati
 
 ### `docs/decisions/`
 
-Decision records for important cross-cutting choices that need historical traceability, such as:
+Decision records for important choices that need historical traceability. `docs/decisions/` should mirror the same five scope folders as the primary canonical artifact families:
 
+```text
+docs/decisions/
+  product/
+  architecture/
+  features/
+  integrations/
+  operations/
+```
+
+Use the same scope-placement rules defined later in this spec. Examples:
+
+- product-scope prioritization choices
 - runtime architecture decisions
 - database choices
 - provider-model decisions
 - persistence strategy decisions
+- feature-specific workflow tradeoff decisions
+- operational backup/restore policy decisions
 
 ### `docs/research/`
 
-Exploratory documents that inform future design but are not themselves canonical specs or plans.
+Exploratory documents that inform future design but are not themselves canonical specs or plans. `docs/research/` should also mirror the same five scope folders:
+
+```text
+docs/research/
+  product/
+  architecture/
+  features/
+  integrations/
+  operations/
+```
+
+The scope folder communicates what area the research informs. The filename communicates the specific topic being investigated.
 
 ### `docs/references/`
 
 Source material and supporting assets referenced by specs and plans.
 
-Recommended subfolders:
+Required subfolders:
 
 ```text
 docs/references/
@@ -202,25 +240,22 @@ If a document could plausibly belong in multiple scope folders, place it accordi
 
 If a single proposed document has multiple primary decision surfaces, split it into separate documents rather than forcing one oversized artifact into an ambiguous location.
 
-## Root-Level Entrypoints
+## Root-Level Navigation
 
 The repository root should remain lightweight and discoverable.
 
-Root files such as:
+Canonical design and planning documents should live under `docs/`, not in the repository root.
 
-- `SPEC.md`
-- `IMPLEMENTATION-PLAN.md`
+The root should instead expose a single navigational document:
 
-should remain as **indexes**, not as the canonical long-form documents.
+- `AGENTS.md`
 
 ### Root file rules
 
-1. Root files must be short.
-2. Root files must point to canonical documents under `docs/`.
-3. Root files must explain which document should be read first.
-4. Root files must not become duplicate full-content copies of the canonical artifacts.
-
-An optional `VERIFICATION-PLAN.md` root index may be added later if verification artifacts become first-class enough to justify a root entrypoint.
+1. `AGENTS.md` must be short and navigational.
+2. `AGENTS.md` must explain that `docs/` contains the important canonical project information.
+3. `AGENTS.md` must point contributors to the correct starting documents under `docs/`.
+4. Canonical specs, implementation plans, and verification plans must not live only in the root.
 
 ## Naming Conventions
 
@@ -254,9 +289,16 @@ docs/verification-plans/features/pdf-ingest-and-review-workspace-verification-pl
 Use the same kebab-case style for supporting directories:
 
 ```text
-docs/decisions/architecture/
 docs/decisions/product/
-docs/research/providers/
+docs/decisions/architecture/
+docs/decisions/features/
+docs/decisions/integrations/
+docs/decisions/operations/
+docs/research/product/
+docs/research/architecture/
+docs/research/features/
+docs/research/integrations/
+docs/research/operations/
 docs/references/design/
 docs/references/source-material/
 docs/references/images/
@@ -272,9 +314,21 @@ docs/decisions/architecture/redis-for-background-jobs.md
 Research docs should describe the investigation topic clearly, for example:
 
 ```text
-docs/research/providers/cloud-ocr-provider-comparison.md
-docs/research/latex/tectonic-vs-latexmk-evaluation.md
+docs/research/integrations/cloud-ocr-provider-comparison.md
+docs/research/architecture/tectonic-vs-latexmk-evaluation.md
 ```
+
+## Artifact Mapping Rule
+
+When a workstream has a matching set of canonical artifacts, they should correspond by scope and topic:
+
+```text
+docs/specs/architecture/<topic>-spec.md
+docs/implementation-plans/architecture/<topic>-implementation-plan.md
+docs/verification-plans/architecture/<topic>-verification-plan.md
+```
+
+The same mapping rule applies to `product/`, `features/`, `integrations/`, and `operations/`.
 
 ## Immediate Deliverables for This Workstream
 
@@ -284,6 +338,8 @@ The completion target for this workstream is:
 
 ```text
 docs/specs/architecture/documentation-information-architecture-spec.md
+docs/implementation-plans/architecture/documentation-information-architecture-implementation-plan.md
+docs/verification-plans/architecture/documentation-information-architecture-verification-plan.md
 docs/
   specs/
     product/
@@ -306,6 +362,9 @@ docs/
   decisions/
     product/
     architecture/
+    features/
+    integrations/
+    operations/
   research/
     product/
     architecture/
@@ -316,11 +375,12 @@ docs/
     design/
     source-material/
     images/
-SPEC.md
-IMPLEMENTATION-PLAN.md
+AGENTS.md
 ```
 
-The directory skeleton above should be created immediately as part of this workstream so contributors do not have to invent structure later. Additional canonical documents may be created on top of this structure afterward, but they are not required to count this documentation-taxonomy workstream as complete.
+The directory skeleton above should be created immediately as part of this workstream so contributors do not have to invent structure later. As part of the cleanup end state for this workstream, the repository root should contain only `AGENTS.md` as its markdown navigation entrypoint; canonical markdown artifacts must be moved under `docs/`.
+
+If a directory would otherwise be empty at commit time, persist it in Git with a minimal placeholder such as `.gitkeep`. Additional canonical documents may be created on top of this structure afterward, but they are not required to count this documentation-taxonomy workstream as complete.
 
 ## Near-Term Canonical Artifact Targets
 
@@ -357,23 +417,40 @@ The expected workflow for new work is:
    - the work is risky enough that release acceptance should be explicitly documented
 5. Keep root-level entrypoints updated so the current canonical docs remain discoverable
 
+Low-risk work may omit a verification plan only when none of the criteria above are met.
+
+Taxonomy-defining and repository-structure workstreams are not exempt from this rule; they are architecture-scope work and therefore require matching implementation planning, and they also require verification planning because they change cross-cutting repository structure and contributor workflow.
+
 ## Migration Guidance for Existing Repository Artifacts
 
-Existing top-level materials should be gradually rehomed under `docs/references/...`.
+Existing top-level materials should be rehomed under `docs/...` as part of the cleanup implementation that follows this specification.
 
 Recommended direction:
 
-- `DESIGN.md` -> `docs/references/design/`
-- `ROUGH-PLAN.md` -> `docs/references/source-material/`
+- `DESIGN.md` -> `docs/references/design/design-system.md`
+- `ROUGH-PLAN.md` -> `docs/references/source-material/rough-plan.md`
+- `SPEC.md` -> `docs/specs/product/intellectual-kinetic-product-spec.md`
+- `IMPLEMENTATION-PLAN.md` -> `docs/implementation-plans/product/intellectual-kinetic-product-implementation-plan.md`
 - `ref-images/` -> `docs/references/images/`
 
-This migration does not need to block implementation, but the repository should move toward that normalized structure.
+During migration, temporary mixed state may exist only while the cleanup change is in progress. The intended end state after cleanup is complete is:
+
+- canonical markdown artifacts live under `docs/`
+- legacy root markdown files are removed
+- `AGENTS.md` remains in root as the only markdown navigation file
+
+### Migration handling rules
+
+1. If a legacy root document is canonical planning or specification content, move it to the correct canonical location under `docs/` rather than copying it.
+2. If a legacy root document mixes canonical content and historical/reference material, split it so canonical material moves into the correct `docs/specs/...`, `docs/implementation-plans/...`, or `docs/verification-plans/...` location and the remaining source material moves under `docs/references/...`.
+3. After any move or split, update root navigation and any affected intra-repository links so contributors are directed to the new canonical path.
+4. Prefer move-and-normalize over duplicate copies; once a canonical document is established under `docs/`, the old root markdown file should be removed.
 
 ## Governance Rules
 
 1. Canonical long-form artifacts live under `docs/`, not only at the root.
-2. Root files are navigational summaries only.
-3. New major workstreams must create matching specs and implementation plans, and they must also create a verification plan whenever any of the criteria in the Artifact Lifecycle verification-plan rule are met.
+2. The repository root should contain navigation only, with `AGENTS.md` as the primary contributor entrypoint.
+3. New major workstreams, including documentation-taxonomy and repository-structure workstreams, must create matching specs and implementation plans, and they must also create a verification plan whenever any of the criteria in the Artifact Lifecycle verification-plan rule are met.
 4. Folder names must clearly indicate the document type they hold.
 5. Scope folders must communicate whether the artifact is product-wide, architecture-wide, feature-specific, integration-specific, or operations-specific.
 
@@ -383,7 +460,7 @@ This information architecture is successful if:
 
 1. A contributor can quickly find all specs, all plans, or all verification docs.
 2. A contributor can tell whether a doc is product-wide, architecture-wide, or feature-specific from its path alone.
-3. The repository root remains readable and does not become a dumping ground.
+3. The repository root remains readable and does not become a dumping ground for canonical planning content.
 4. The structure supports many future workstreams without introducing ambiguity.
 
 ## Done Criteria for This Specification
@@ -396,4 +473,4 @@ This specification is considered complete when:
 4. The naming rules are explicit enough that contributors can create new docs without inventing ad hoc conventions.
 5. The verification-plan creation rule is explicit and consistent.
 6. The scoped directory skeleton defined in Immediate Deliverables exists in the repository.
-7. Root `SPEC.md` and `IMPLEMENTATION-PLAN.md` are updated to act as lightweight indexes to the canonical `docs/` structure.
+7. Root `AGENTS.md` exists and tells contributors that `docs/` contains the important canonical project information.
