@@ -654,6 +654,20 @@ button {
   font-size: 13px;
 }
 
+.ik-find-dialog-find-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(54px, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.ik-find-count {
+  color: #5f6368;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+
 .ik-find-dialog-actions {
   display: flex;
   justify-content: flex-end;

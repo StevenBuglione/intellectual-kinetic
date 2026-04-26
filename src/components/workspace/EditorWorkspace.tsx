@@ -7,6 +7,9 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
+import type { Editor } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { TextSelection } from "@tiptap/pm/state";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "next/link";
@@ -36,6 +39,7 @@ import {
   Replace,
   Save,
   Search,
+  SearchCheck,
   SpellCheck,
   Star,
   Underline,
@@ -75,6 +79,9 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [workflowPanel, setWorkflowPanel] = useState<"find" | "statistics" | "paste" | null>(null);
   const [findText, setFindText] = useState("");
   const [replaceText, setReplaceText] = useState("");
+  const [findStatus, setFindStatus] = useState<{ activeIndex: number; total: number } | null>(null);
+  const [findCursor, setFindCursor] = useState(-1);
+  const findInputRef = useRef<HTMLInputElement | null>(null);
   const [replacementCount, setReplacementCount] = useState<number | null>(null);
   const [pasteFormat, setPasteFormat] = useState<PasteSpecialFormat>("latex");
   const [pasteSource, setPasteSource] = useState("");
@@ -107,6 +114,26 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   useEffect(() => {
     documentRef.current = document;
   }, [document]);
+
+  useEffect(() => {
+    function openFindFromShortcut(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "f") {
+        event.preventDefault();
+        setWorkflowPanel("find");
+        window.setTimeout(() => findInputRef.current?.focus(), 0);
+      }
+    }
+
+    window.addEventListener("keydown", openFindFromShortcut);
+
+    return () => window.removeEventListener("keydown", openFindFromShortcut);
+  }, []);
+
+  useEffect(() => {
+    if (workflowPanel === "find") {
+      window.setTimeout(() => findInputRef.current?.focus(), 0);
+    }
+  }, [workflowPanel]);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -182,7 +209,36 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     editor?.commands.setContent(canonicalToTiptapDocument(nextDocument), { emitUpdate: false });
     setCompiledPreview(null);
     setCompileState("idle");
+    setFindCursor(-1);
+    setFindStatus(null);
   }, [editor]);
+
+  function selectFindMatch(direction: "next" | "previous" = "next") {
+    if (!editor || findText.length === 0) {
+      setFindCursor(-1);
+      setFindStatus({ activeIndex: 0, total: 0 });
+      return;
+    }
+
+    const matches = findEditorTextMatches(editor, findText);
+    if (matches.length === 0) {
+      setFindCursor(-1);
+      setFindStatus({ activeIndex: 0, total: 0 });
+      return;
+    }
+
+    const step = direction === "next" ? 1 : -1;
+    const nextIndex = findCursor < 0
+      ? direction === "next" ? 0 : matches.length - 1
+      : (findCursor + step + matches.length) % matches.length;
+    const match = matches[nextIndex];
+
+    editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, match.from, match.to)));
+    editor.view.focus();
+    setFindCursor(nextIndex);
+    setFindStatus({ activeIndex: nextIndex + 1, total: matches.length });
+    setReplacementCount(null);
+  }
 
   function replaceAllMatches() {
     const result = replaceAllInCanonicalDocument(documentRef.current, {
@@ -546,15 +602,38 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             <label>
               <span>Find</span>
               <input
+                ref={findInputRef}
                 type="search"
                 aria-label="Find text"
                 value={findText}
                 onChange={(event) => {
                   setFindText(event.target.value);
                   setReplacementCount(null);
+                  setFindCursor(-1);
+                  setFindStatus(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    selectFindMatch(event.shiftKey ? "previous" : "next");
+                  }
                 }}
               />
             </label>
+            <div className="ik-find-dialog-find-row">
+              <button className="ik-doc-panel-button" type="button" onClick={() => selectFindMatch("previous")}>
+                Previous
+              </button>
+              <button className="ik-doc-action-button" type="button" onClick={() => selectFindMatch("next")}>
+                <SearchCheck size={15} />
+                Find next
+              </button>
+              {findStatus ? (
+                <span className="ik-find-count" aria-live="polite">
+                  {findStatus.total > 0 ? `${findStatus.activeIndex} of ${findStatus.total}` : "No results"}
+                </span>
+              ) : null}
+            </div>
             <label>
               <span>Replace</span>
               <input
@@ -688,6 +767,79 @@ function TexPageBoxEditorSurface({
       ))}
     </section>
   );
+}
+
+type EditorTextMatch = {
+  from: number;
+  to: number;
+};
+
+type SearchCharacter = {
+  value: string;
+  from: number;
+  to: number;
+};
+
+function findEditorTextMatches(editor: Editor, query: string): EditorTextMatch[] {
+  const normalizedQuery = query.toLocaleLowerCase();
+  if (normalizedQuery.length === 0) {
+    return [];
+  }
+
+  const matches: EditorTextMatch[] = [];
+  editor.state.doc.descendants((node, pos) => {
+    if (!node.isTextblock) {
+      return true;
+    }
+
+    const characters = textblockSearchCharacters(node, pos);
+    const haystack = characters.map((character) => character.value).join("").toLocaleLowerCase();
+    let searchFrom = 0;
+    let index = haystack.indexOf(normalizedQuery, searchFrom);
+    while (index >= 0) {
+      const endIndex = index + normalizedQuery.length - 1;
+      const from = characters[index]?.from;
+      const to = characters[endIndex]?.to;
+      if (typeof from === "number" && typeof to === "number" && to > from) {
+        matches.push({ from, to });
+      }
+
+      searchFrom = index + normalizedQuery.length;
+      index = haystack.indexOf(normalizedQuery, searchFrom);
+    }
+
+    return false;
+  });
+
+  return matches;
+}
+
+function textblockSearchCharacters(node: ProseMirrorNode, blockPosition: number): SearchCharacter[] {
+  const characters: SearchCharacter[] = [];
+  node.content.forEach((child, offset) => {
+    const from = blockPosition + 1 + offset;
+    if (child.isText && child.text) {
+      for (let index = 0; index < child.text.length; index += 1) {
+        characters.push({
+          value: child.text[index],
+          from: from + index,
+          to: from + index + 1,
+        });
+      }
+      return;
+    }
+
+    const leafText = child.type.name === "math_inline" ? String(child.attrs.tex ?? "") : child.textContent;
+    for (const value of leafText) {
+      characters.push({
+        value,
+        from,
+        to: from + child.nodeSize,
+      });
+    }
+  });
+
+  return characters;
 }
 
 function CanonicalDocumentFallback({ document }: { document: CanonicalDocument }) {

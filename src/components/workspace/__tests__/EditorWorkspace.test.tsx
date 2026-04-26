@@ -121,6 +121,29 @@ describe("EditorWorkspace", () => {
     expect(screen.getAllByText("s = vt")).toHaveLength(1);
   });
 
+  it("finds and selects matching document text without replacing it", async () => {
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Find and replace" }));
+    const findDialog = screen.getByRole("dialog", { name: "Find and replace" });
+    await userEvent.type(within(findDialog).getByRole("searchbox", { name: "Find text" }), "motion");
+
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Find next" }));
+
+    expect(await within(findDialog).findByText("1 of 2")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "A Treatise on Motion" })).toBeInTheDocument();
+    expect(screen.getByText("Uniform motion preserves proportional distance.")).toBeInTheDocument();
+  });
+
+  it("opens the find dialog from the standard keyboard shortcut", async () => {
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.keyboard("{Control>}f{/Control}");
+
+    const findDialog = screen.getByRole("dialog", { name: "Find and replace" });
+    expect(within(findDialog).getByRole("searchbox", { name: "Find text" })).toHaveFocus();
+  });
+
   it("shows document statistics and imports paste-special content into the canonical editor", async () => {
     render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
 

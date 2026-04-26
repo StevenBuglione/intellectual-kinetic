@@ -132,12 +132,21 @@ async function main() {
       throw new Error(`Expected one math block before replace, saw text:\n${initialText}`);
     }
 
-    await page.getByRole("button", { name: "Find and replace" }).click();
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+F" : "Control+F");
     const findDialog = page.getByRole("dialog", { name: "Find and replace" });
     await findDialog.waitFor({ state: "visible" });
     const dialogBox = await findDialog.boundingBox();
     if (!dialogBox || dialogBox.width > 380 || dialogBox.x < 900) {
       throw new Error(`Find/replace should be a small floating dialog, got ${JSON.stringify(dialogBox)}.`);
+    }
+
+    const searchBox = findDialog.getByRole("searchbox", { name: "Find text" });
+    await searchBox.fill("motion");
+    await findDialog.getByRole("button", { name: "Find next" }).click();
+    await page.getByText("1 of 2").waitFor({ state: "visible" });
+    const selectedMatch = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+    if (selectedMatch.toLocaleLowerCase() !== "motion") {
+      throw new Error(`Find next did not select matching editor text; selected ${JSON.stringify(selectedMatch)}.`);
     }
 
     await findDialog.getByRole("searchbox", { name: "Find text" }).fill("Let v");
@@ -184,7 +193,7 @@ async function main() {
       throw new Error(`Browser console errors were emitted:\n${consoleErrors.join("\n")}`);
     }
 
-    console.log("Editor workflow browser verification passed: floating find/replace, cross-inline replace, no math duplication, transparent TeX selection layer.");
+    console.log("Editor workflow browser verification passed: Ctrl-F floating find, selected find match, cross-inline replace, no math duplication, transparent TeX selection layer.");
   } finally {
     if (browser) {
       await browser.close();
