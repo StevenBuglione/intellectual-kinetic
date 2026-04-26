@@ -64,7 +64,7 @@ export function serializeCanonicalDocumentToLatex(
     "\\newcommand{\\IkIndexEntry}[2]{}",
     "\\newcommand{\\IkGlossaryEntry}[2]{#1}",
     "\\newcommand{\\IkNomenclatureEntry}[2]{#1}",
-    "\\newcommand{\\IkAssetImage}[3]{\\par\\vspace{0.8em}\\begin{center}\\includegraphics[width=#1]{#2}\\\\[0.35em]#3\\end{center}\\vspace{0.4em}}",
+    "\\newcommand{\\IkAssetImage}[4]{\\par\\vspace{0.8em}\\begin{center}\\includegraphics[width=#1,height=#2]{#3}\\\\[0.35em]#4\\end{center}\\vspace{0.4em}}",
     `\\newcommand{\\IkTableCell}[2]{\\fbox{\\begin{minipage}[t][${table.cellHeightIn}in][c]{#1}#2\\end{minipage}}}`,
     `\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][${figure.placeholderHeightIn}in][c]{${figure.placeholderWidthRatio}\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}`,
     "\\newcommand{\\IkAssetFigurePlaceholder}[4]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][#2][c]{#1}\\centering #3\\end{minipage}}\\\\[0.35em]#4\\end{center}\\vspace{0.4em}}",
@@ -172,7 +172,8 @@ function serializeBlock(
     const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
     if (block.asset?.kind === "embedded") {
       const width = `${block.asset.widthRatio.toFixed(2)}\\linewidth`;
-      return [`\\IkAssetImage{${width}}{${escapeLatex(block.asset.fileName)}}{${caption}${label}}`, ""];
+      const height = `${(block.asset.heightPx / 96).toFixed(2)}in`;
+      return [`\\IkAssetImage{${width}}{${height}}{${escapeLatex(block.asset.fileName)}}{${caption}${label}}`, ""];
     }
 
     if (block.asset) {

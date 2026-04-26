@@ -113,7 +113,7 @@ describe("deterministic LaTeX serializer", () => {
     expect(result.source).toContain("\\IkNomenclatureEntry{k}{kinetic invariant}");
     expect(result.source).toContain("% IK table mode: longtable");
     expect(result.source).toContain("% IK table booktabs: true");
-    expect(result.source).toContain("\\IkAssetImage{0.36\\linewidth}{asset-embedded-evidence.png}{Embedded asset crop\\label{fig:embedded-evidence}}");
+    expect(result.source).toContain("\\IkAssetImage{0.36\\linewidth}{0.75in}{asset-embedded-evidence.png}{Embedded asset crop\\label{fig:embedded-evidence}}");
     expect(result.source).toContain("\\IkIncludedChildBegin{Appendix B}");
     expect(result.source).toContain("Child document expanded into master export.");
     expect(result.source).toContain("\\IkGeneratedList{Index}{conditional branches Breadth Coverage}");

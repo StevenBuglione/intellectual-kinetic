@@ -114,6 +114,17 @@ function renderCanonicalDocumentPageToEditorHtml(
         font-weight: 600;
         background: #f8fafd;
       }
+      .ik-doc-table-strict table {
+        width: ${table.contentWidthIn * 96}px;
+      }
+      .ik-doc-table-strict th,
+      .ik-doc-table-strict td {
+        height: ${Number(table.cellHeightIn) * 96}px;
+        border-color: #000000;
+      }
+      .ik-doc-table-strict th {
+        background: #ffffff;
+      }
       .ik-doc-table-figure,
       .ik-doc-figure-placeholder { margin: ${spacing.figureMarginPx}px 0; }
       .ik-doc-table-figure figcaption,
@@ -170,8 +181,9 @@ function renderCanonicalDocumentPageToEditorHtml(
       }
       .ik-doc-embedded-asset {
         display: block;
-        object-fit: contain;
-        border: 1px solid #dadce0;
+        margin: 0 auto;
+        object-fit: fill;
+        border: 0;
       }
     </style>
   </head>
@@ -234,7 +246,8 @@ function renderBlock(block: CanonicalBlock): string {
   }
 
   if (block.type === "table") {
-    return `<figure class="ik-doc-table-figure">${block.caption ? `<figcaption>${renderInline(block.caption)}</figcaption>` : ""}<table><tbody>${block.rows.map((row) => `<tr>${row.cells.map((cell) => {
+    const strictTable = block.layout?.booktabs || block.layout?.tableKind === "longtable";
+    return `<figure class="ik-doc-table-figure${strictTable ? " ik-doc-table-strict" : ""}">${block.caption ? `<figcaption>${renderInline(block.caption)}</figcaption>` : ""}<table><tbody>${block.rows.map((row) => `<tr>${row.cells.map((cell) => {
       const tag = cell.header ? "th" : "td";
       const width = block.layout?.columnWidths?.[row.cells.indexOf(cell)];
       const style = [
@@ -252,7 +265,7 @@ function renderBlock(block: CanonicalBlock): string {
   if (block.type === "figure") {
     if (block.asset?.kind === "embedded") {
       const assetStyle = `style="width:${block.asset.widthRatio * 100}%;height:${block.asset.heightPx}px"`;
-      return `<figure class="ik-doc-figure-placeholder"><img class="ik-doc-embedded-asset" ${assetStyle} alt="${escapeHtmlAttribute(block.altText)}" src="data:${escapeHtmlAttribute(block.asset.mimeType)};base64,${escapeHtmlAttribute(block.asset.dataBase64)}" />${block.caption ? `<figcaption>${renderInline(block.caption)}</figcaption>` : ""}</figure>`;
+      return `<figure class="ik-doc-figure-placeholder"><img class="ik-doc-embedded-asset" ${assetStyle} alt="${escapeHtmlAttribute(block.altText)}" src="data:${escapeHtmlAttribute(block.asset.mimeType)};base64,${escapeHtmlAttribute(block.asset.dataBase64)}" />${block.caption ? `<figcaption style="text-align:center;font-weight:400">${renderInline(block.caption)}</figcaption>` : ""}</figure>`;
     }
 
     const assetStyle = block.asset
