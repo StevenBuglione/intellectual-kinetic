@@ -367,9 +367,18 @@ button {
   background: #f1f3f4;
 }
 
+.ik-doc-workspace-left-collapsed {
+  grid-template-columns: 64px minmax(820px, 1fr);
+}
+
 .ik-doc-workspace-preview-open,
 .ik-doc-workspace-source-open {
   grid-template-columns: 268px minmax(760px, 1fr) minmax(860px, 920px);
+}
+
+.ik-doc-workspace-left-collapsed.ik-doc-workspace-preview-open,
+.ik-doc-workspace-left-collapsed.ik-doc-workspace-source-open {
+  grid-template-columns: 64px minmax(760px, 1fr) minmax(860px, 920px);
 }
 
 .ik-doc-workspace-review-open.ik-doc-workspace-preview-open.ik-doc-workspace-source-open {
@@ -377,9 +386,49 @@ button {
 }
 
 .ik-doc-left-stack {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
   min-width: 0;
-  padding: 16px 12px 16px 32px;
+  padding: 16px 12px 16px 10px;
   border-right: 1px solid #dadce0;
+}
+
+.ik-doc-left-stack-collapsed {
+  grid-template-columns: 40px;
+  padding-right: 12px;
+}
+
+.ik-left-rail {
+  display: grid;
+  align-content: flex-start;
+  gap: 8px;
+}
+
+.ik-left-rail-button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  color: #3c4043;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ik-left-rail-button:hover {
+  background: #e8eaed;
+}
+
+.ik-left-rail-button[aria-pressed="true"],
+.ik-left-rail-button[aria-expanded="true"] {
+  color: #0b57d0;
+  background: #d3e3fd;
+}
+
+.ik-left-panel {
+  min-width: 0;
 }
 
 .ik-doc-canvas {
@@ -779,11 +828,10 @@ button {
   align-items: center;
   justify-content: space-between;
   min-height: 40px;
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
-.ik-tabs-topline button,
-.ik-tabs-topline span {
+.ik-tabs-topline button {
   display: inline-grid;
   place-items: center;
   width: 32px;
@@ -792,14 +840,20 @@ button {
   border-radius: 999px;
   color: #3c4043;
   background: transparent;
+  cursor: pointer;
 }
 
 .ik-doc-tabs-rail h2 {
-  margin: 0 0 14px;
+  margin: 0;
   padding: 0 12px;
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0;
+}
+
+.ik-doc-tab-list {
+  display: grid;
+  gap: 3px;
 }
 
 .ik-doc-tab-active {
@@ -816,6 +870,16 @@ button {
   cursor: pointer;
   text-align: left;
   font-weight: 600;
+}
+
+.ik-doc-tab-active[aria-selected="false"] {
+  color: #3c4043;
+  background: transparent;
+  font-weight: 500;
+}
+
+.ik-doc-tab-active[aria-selected="false"]:hover {
+  background: #e8eaed;
 }
 
 .ik-doc-outline {

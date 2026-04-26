@@ -76,6 +76,13 @@ type DocumentOutlineHeading = {
   title: string;
 };
 
+type DocumentTab = {
+  id: string;
+  label: string;
+};
+
+type LeftWorkspacePanel = "outline" | "review" | "statistics" | "paste";
+
 type FindHighlightState = {
   decorations: DecorationSet;
 };
@@ -125,9 +132,12 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [document, setDocument] = useState(initialDocument);
   const documentRef = useRef(document);
   const [sourceOpen, setSourceOpen] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
-  const [workflowPanel, setWorkflowPanel] = useState<"find" | "statistics" | "paste" | null>(null);
+  const [workflowPanel, setWorkflowPanel] = useState<"find" | null>(null);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
+  const [leftPanel, setLeftPanel] = useState<LeftWorkspacePanel>("outline");
+  const [documentTabs, setDocumentTabs] = useState<DocumentTab[]>([{ id: "tab-1", label: "Tab 1" }]);
+  const [activeDocumentTabId, setActiveDocumentTabId] = useState("tab-1");
   const [findText, setFindText] = useState("");
   const [replaceText, setReplaceText] = useState("");
   const [matchCase, setMatchCase] = useState(false);
@@ -172,6 +182,25 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     () => compareCanonicalDocumentToPdfText(document, compiledPreview?.extractedText),
     [compiledPreview?.extractedText, document],
   );
+  const reviewOpen = leftSidebarOpen && leftPanel === "review";
+  const statisticsOpen = leftSidebarOpen && leftPanel === "statistics";
+  const pasteOpen = leftSidebarOpen && leftPanel === "paste";
+
+  function openLeftPanel(panel: LeftWorkspacePanel) {
+    setLeftPanel(panel);
+    setLeftSidebarOpen(true);
+  }
+
+  function addDocumentTab() {
+    const nextTabNumber = documentTabs.length + 1;
+    const nextTab = {
+      id: `tab-${nextTabNumber}`,
+      label: `Tab ${nextTabNumber}`,
+    };
+
+    setDocumentTabs((tabs) => [...tabs, nextTab]);
+    setActiveDocumentTabId(nextTab.id);
+  }
 
   useEffect(() => {
     const mountEditor = window.setTimeout(() => setEditorMountKey(1), 0);
@@ -398,6 +427,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
 
     setPasteSource("");
     applyDocumentUpdate(nextDocument);
+    openLeftPanel("outline");
   }
 
   function focusOutlineHeading(headingId: string) {
@@ -573,8 +603,8 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             type="button"
             className="ik-doc-icon"
             aria-label="Document statistics"
-            aria-pressed={workflowPanel === "statistics"}
-            onClick={() => setWorkflowPanel((panel) => panel === "statistics" ? null : "statistics")}
+            aria-pressed={statisticsOpen}
+            onClick={() => openLeftPanel("statistics")}
           >
             <BarChart3 size={16} />
           </button>
@@ -623,8 +653,8 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             type="button"
             className="ik-doc-icon"
             aria-label="Paste special"
-            aria-pressed={workflowPanel === "paste"}
-            onClick={() => setWorkflowPanel((panel) => panel === "paste" ? null : "paste")}
+            aria-pressed={pasteOpen}
+            onClick={() => openLeftPanel("paste")}
           >
             <ClipboardPaste size={16} />
           </button>
@@ -645,7 +675,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
           <button className="ik-doc-panel-button" type="button" aria-label="Editing mode">
             Editing
           </button>
-          <button className="ik-doc-panel-button" type="button" aria-pressed={reviewOpen} onClick={() => setReviewOpen((open) => !open)}>
+          <button className="ik-doc-panel-button" type="button" aria-pressed={reviewOpen} onClick={() => openLeftPanel("review")}>
             <PanelLeftOpen size={16} />
             Review
           </button>
@@ -663,106 +693,177 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       <section
         className={[
           "ik-doc-workspace",
+          leftSidebarOpen ? "" : "ik-doc-workspace-left-collapsed",
           reviewOpen ? "ik-doc-workspace-review-open" : "",
           pdfOpen ? "ik-doc-workspace-preview-open" : "",
           sourceOpen ? "ik-doc-workspace-source-open" : "",
         ].join(" ")}
       >
-        <div className="ik-doc-left-stack">
-          <aside className="ik-doc-tabs-rail" aria-label="Document tabs">
-            <div className="ik-tabs-topline">
-              <button type="button" aria-label="Hide tabs and outlines">
-                ←
-              </button>
-              <span>+</span>
-            </div>
-            <h2>Document tabs</h2>
-            <button className="ik-doc-tab-active" type="button" aria-current="true">
-              <FileText size={16} />
-              Tab 1
+        <aside
+          className={`ik-doc-left-stack${leftSidebarOpen ? "" : " ik-doc-left-stack-collapsed"}`}
+          aria-label="Left workspace"
+        >
+          <nav className="ik-left-rail" aria-label="Left workspace panels">
+            <button
+              className="ik-left-rail-button"
+              type="button"
+              aria-label={leftSidebarOpen ? "Collapse left sidebar" : "Expand left sidebar"}
+              aria-expanded={leftSidebarOpen}
+              onClick={() => setLeftSidebarOpen((open) => !open)}
+            >
+              <PanelLeftOpen size={18} />
             </button>
-            <nav className="ik-doc-outline" aria-label="Document outline">
-              <h3>Outline</h3>
-              {documentOutlineHeadings.length > 0 ? (
-                documentOutlineHeadings.map((heading) => (
-                  <button
-                    className={`ik-doc-outline-item ik-doc-outline-level-${heading.level}`}
-                    key={heading.id}
-                    type="button"
-                    aria-current={currentOutlineHeadingId === heading.id ? "true" : undefined}
-                    onClick={() => focusOutlineHeading(heading.id)}
-                  >
-                    {heading.title}
-                  </button>
-                ))
-              ) : (
-                <p>Headings you add to the document will appear here.</p>
-              )}
-            </nav>
-          </aside>
+            <button
+              className="ik-left-rail-button"
+              type="button"
+              aria-label="Open document outline"
+              aria-pressed={leftSidebarOpen && leftPanel === "outline"}
+              onClick={() => openLeftPanel("outline")}
+            >
+              <List size={18} />
+            </button>
+            <button
+              className="ik-left-rail-button"
+              type="button"
+              aria-label="Open source review"
+              aria-pressed={reviewOpen}
+              onClick={() => openLeftPanel("review")}
+            >
+              <FileText size={18} />
+            </button>
+            <button
+              className="ik-left-rail-button"
+              type="button"
+              aria-label="Open document statistics"
+              aria-pressed={statisticsOpen}
+              onClick={() => openLeftPanel("statistics")}
+            >
+              <BarChart3 size={18} />
+            </button>
+            <button
+              className="ik-left-rail-button"
+              type="button"
+              aria-label="Open paste special"
+              aria-pressed={pasteOpen}
+              onClick={() => openLeftPanel("paste")}
+            >
+              <ClipboardPaste size={18} />
+            </button>
+          </nav>
 
-          {reviewOpen ? (
-            <aside className="ik-doc-side-panel" aria-label="Source review">
-              <div className="ik-panel-title">
-                <FileText size={18} />
-                Source regions
-              </div>
-              {document.blocks.map((block) => (
-                <button className="ik-region" key={block.id} type="button">
-                  <span>{block.provenance?.sourceRegionId ?? block.id}</span>
-                  <strong>{Math.round((block.provenance?.confidence ?? 0.75) * 100)}%</strong>
-                </button>
-              ))}
-            </aside>
+          {leftSidebarOpen ? (
+            <div className="ik-left-panel">
+              <section className="ik-doc-tabs-rail" aria-label="Document tabs">
+                <div className="ik-tabs-topline">
+                  <h2>Document tabs</h2>
+                  <button type="button" aria-label="Add document tab" onClick={addDocumentTab}>
+                    +
+                  </button>
+                </div>
+                <div className="ik-doc-tab-list" role="tablist" aria-label="Document tabs">
+                  {documentTabs.map((tab) => (
+                    <button
+                      className="ik-doc-tab-active"
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeDocumentTabId === tab.id}
+                      onClick={() => setActiveDocumentTabId(tab.id)}
+                    >
+                      <FileText size={16} />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {leftPanel === "outline" ? (
+                <nav className="ik-doc-outline" aria-label="Document outline">
+                  <h3>Outline</h3>
+                  {documentOutlineHeadings.length > 0 ? (
+                    documentOutlineHeadings.map((heading) => (
+                      <button
+                        className={`ik-doc-outline-item ik-doc-outline-level-${heading.level}`}
+                        key={heading.id}
+                        type="button"
+                        aria-current={currentOutlineHeadingId === heading.id ? "true" : undefined}
+                        onClick={() => focusOutlineHeading(heading.id)}
+                      >
+                        {heading.title}
+                      </button>
+                    ))
+                  ) : (
+                    <p>Headings you add to the document will appear here.</p>
+                  )}
+                </nav>
+              ) : null}
+
+              {reviewOpen ? (
+                <aside className="ik-doc-side-panel" aria-label="Source review">
+                  <div className="ik-panel-title">
+                    <FileText size={18} />
+                    Source regions
+                  </div>
+                  {document.blocks.map((block) => (
+                    <button className="ik-region" key={block.id} type="button">
+                      <span>{block.provenance?.sourceRegionId ?? block.id}</span>
+                      <strong>{Math.round((block.provenance?.confidence ?? 0.75) * 100)}%</strong>
+                    </button>
+                  ))}
+                </aside>
+              ) : null}
+
+              {statisticsOpen ? (
+                <aside className="ik-doc-side-panel ik-workflow-panel" aria-label="Document statistics">
+                  <div className="ik-panel-title">
+                    <BarChart3 size={18} />
+                    Document statistics
+                  </div>
+                  <dl className="ik-stat-grid">
+                    <div><dt>Words</dt><dd>{documentStatistics.words} words</dd></div>
+                    <div><dt>Characters</dt><dd>{documentStatistics.characters} characters</dd></div>
+                    <div><dt>No spaces</dt><dd>{documentStatistics.charactersNoSpaces} characters</dd></div>
+                    <div><dt>Blocks</dt><dd>{documentStatistics.totalBlocks} blocks</dd></div>
+                    <div><dt>Headings</dt><dd>{documentStatistics.headings} headings</dd></div>
+                    <div><dt>Math</dt><dd>{documentStatistics.mathBlocks} math blocks</dd></div>
+                  </dl>
+                </aside>
+              ) : null}
+
+              {pasteOpen ? (
+                <aside className="ik-doc-side-panel ik-workflow-panel" aria-label="Paste special">
+                  <div className="ik-panel-title">
+                    <ClipboardPaste size={18} />
+                    Paste special
+                  </div>
+                  <label>
+                    <span>Format</span>
+                    <select
+                      aria-label="Paste format"
+                      value={pasteFormat}
+                      onChange={(event) => setPasteFormat(event.target.value as PasteSpecialFormat)}
+                    >
+                      <option value="latex">LaTeX</option>
+                      <option value="html">HTML</option>
+                      <option value="plain-text">Plain text</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Source</span>
+                    <textarea
+                      aria-label="Paste source"
+                      value={pasteSource}
+                      onChange={(event) => setPasteSource(event.target.value)}
+                    />
+                  </label>
+                  <button className="ik-doc-action-button" type="button" onClick={insertPasteSpecial}>
+                    Insert paste
+                  </button>
+                </aside>
+              ) : null}
+            </div>
           ) : null}
-          {workflowPanel === "statistics" ? (
-            <aside className="ik-doc-side-panel ik-workflow-panel" aria-label="Document statistics">
-              <div className="ik-panel-title">
-                <BarChart3 size={18} />
-                Document statistics
-              </div>
-              <dl className="ik-stat-grid">
-                <div><dt>Words</dt><dd>{documentStatistics.words} words</dd></div>
-                <div><dt>Characters</dt><dd>{documentStatistics.characters} characters</dd></div>
-                <div><dt>No spaces</dt><dd>{documentStatistics.charactersNoSpaces} characters</dd></div>
-                <div><dt>Blocks</dt><dd>{documentStatistics.totalBlocks} blocks</dd></div>
-                <div><dt>Headings</dt><dd>{documentStatistics.headings} headings</dd></div>
-                <div><dt>Math</dt><dd>{documentStatistics.mathBlocks} math blocks</dd></div>
-              </dl>
-            </aside>
-          ) : null}
-          {workflowPanel === "paste" ? (
-            <aside className="ik-doc-side-panel ik-workflow-panel" aria-label="Paste special">
-              <div className="ik-panel-title">
-                <ClipboardPaste size={18} />
-                Paste special
-              </div>
-              <label>
-                <span>Format</span>
-                <select
-                  aria-label="Paste format"
-                  value={pasteFormat}
-                  onChange={(event) => setPasteFormat(event.target.value as PasteSpecialFormat)}
-                >
-                  <option value="latex">LaTeX</option>
-                  <option value="html">HTML</option>
-                  <option value="plain-text">Plain text</option>
-                </select>
-              </label>
-              <label>
-                <span>Source</span>
-                <textarea
-                  aria-label="Paste source"
-                  value={pasteSource}
-                  onChange={(event) => setPasteSource(event.target.value)}
-                />
-              </label>
-              <button className="ik-doc-action-button" type="button" onClick={insertPasteSpecial}>
-                Insert paste
-              </button>
-            </aside>
-          ) : null}
-        </div>
+        </aside>
 
         {workflowPanel === "find" ? (
           <section className="ik-find-dialog" role="dialog" aria-label="Find and replace">

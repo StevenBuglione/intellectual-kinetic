@@ -172,7 +172,51 @@ async function main() {
       throw new Error(`Expected the first document heading to be current in the outline, got ${initialOutlineCurrent}.`);
     }
 
-    await page.getByRole("button", { name: "Paste special" }).click();
+    const leftWorkspace = page.getByRole("complementary", { name: "Left workspace" });
+    await leftWorkspace.getByRole("button", { name: "Collapse left sidebar" }).click();
+    const expandLeftSidebar = leftWorkspace.getByRole("button", { name: "Expand left sidebar" });
+    await expandLeftSidebar.waitFor({ state: "visible" });
+    const expandState = await expandLeftSidebar.getAttribute("aria-expanded");
+    if (expandState !== "false") {
+      throw new Error(`Collapsed left sidebar should report aria-expanded=false, got ${expandState}.`);
+    }
+    const outlineCountAfterCollapse = await outline.count();
+    if (outlineCountAfterCollapse !== 0) {
+      throw new Error(`Collapsed left sidebar should hide the document outline, found ${outlineCountAfterCollapse}.`);
+    }
+
+    await leftWorkspace.getByRole("button", { name: "Open source review" }).click();
+    await page.getByRole("complementary", { name: "Source review" }).waitFor({ state: "visible" });
+    const sourceReviewPressed = await leftWorkspace.getByRole("button", { name: "Open source review" }).getAttribute("aria-pressed");
+    if (sourceReviewPressed !== "true") {
+      throw new Error(`Source review rail button should be pressed after opening, got ${sourceReviewPressed}.`);
+    }
+
+    await leftWorkspace.getByRole("button", { name: "Open document statistics" }).click();
+    await page.getByRole("complementary", { name: "Document statistics" }).waitFor({ state: "visible" });
+    const sourceReviewCountAfterStats = await page.getByRole("complementary", { name: "Source review" }).count();
+    if (sourceReviewCountAfterStats !== 0) {
+      throw new Error("Opening statistics should close the source review panel.");
+    }
+
+    await page.getByRole("button", { name: "Add document tab" }).click();
+    const tabTwo = page.getByRole("tab", { name: "Tab 2" });
+    await tabTwo.waitFor({ state: "visible" });
+    const tabTwoSelected = await tabTwo.getAttribute("aria-selected");
+    if (tabTwoSelected !== "true") {
+      throw new Error(`New document tab should become selected, got ${tabTwoSelected}.`);
+    }
+    const tabOne = page.getByRole("tab", { name: "Tab 1" });
+    await tabOne.click();
+    const tabOneSelected = await tabOne.getAttribute("aria-selected");
+    if (tabOneSelected !== "true") {
+      throw new Error(`Clicking Tab 1 should select it, got ${tabOneSelected}.`);
+    }
+
+    await leftWorkspace.getByRole("button", { name: "Open document outline" }).click();
+    await outline.waitFor({ state: "visible" });
+
+    await page.getByRole("button", { name: "Paste special", exact: true }).click();
     const pastePanel = page.getByRole("complementary", { name: "Paste special" });
     await pastePanel.getByRole("combobox", { name: "Paste format" }).selectOption("latex");
     await pastePanel.getByRole("textbox", { name: "Paste source" }).fill("\\section{Imported Section}\nImported body.");
@@ -328,7 +372,7 @@ async function main() {
       throw new Error(`Browser console errors were emitted:\n${consoleErrors.join("\n")}`);
     }
 
-    console.log("Editor workflow browser verification passed: document outline navigation, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
+    console.log("Editor workflow browser verification passed: collapsible left workspace, document outline navigation, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
   } finally {
     if (browser) {
       await browser.close();

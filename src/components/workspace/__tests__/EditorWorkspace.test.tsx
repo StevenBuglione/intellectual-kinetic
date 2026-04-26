@@ -26,8 +26,9 @@ describe("EditorWorkspace", () => {
     expect(screen.getByRole("button", { name: "Editing mode" })).toBeInTheDocument();
     expect(screen.getByLabelText("Document ruler")).toBeInTheDocument();
     expect(screen.getByLabelText("Vertical ruler")).toBeInTheDocument();
-    expect(screen.getByRole("complementary", { name: "Document tabs" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tab 1" })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("complementary", { name: "Left workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Document tabs" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Tab 1" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByLabelText("Google Docs-style document page")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "A Treatise on Motion" })).toBeInTheDocument();
     expect(screen.getByText("AST source of truth")).toBeInTheDocument();
@@ -248,11 +249,63 @@ describe("EditorWorkspace", () => {
     await userEvent.paste("\\section{Imported Section}\nImported body.");
     await userEvent.click(screen.getByRole("button", { name: "Insert paste" }));
 
-    const importedOutlineItem = await within(outline).findByRole("button", { name: "Imported Section" });
+    const updatedOutline = await screen.findByRole("navigation", { name: "Document outline" });
+    const importedOutlineItem = await within(updatedOutline).findByRole("button", { name: "Imported Section" });
     await userEvent.click(importedOutlineItem);
 
     expect(importedOutlineItem).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("heading", { level: 1, name: "Imported Section" })).toBeInTheDocument();
+  });
+
+  it("collapses the left workspace and switches between functional left panels", async () => {
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    const leftWorkspace = screen.getByRole("complementary", { name: "Left workspace" });
+    expect(within(leftWorkspace).getByRole("navigation", { name: "Document outline" })).toBeInTheDocument();
+
+    await userEvent.click(within(leftWorkspace).getByRole("button", { name: "Collapse left sidebar" }));
+
+    expect(within(leftWorkspace).getByRole("button", { name: "Expand left sidebar" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.queryByRole("navigation", { name: "Document outline" })).not.toBeInTheDocument();
+
+    await userEvent.click(within(leftWorkspace).getByRole("button", { name: "Open source review" }));
+
+    expect(within(leftWorkspace).getByRole("button", { name: "Open source review" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("complementary", { name: "Source review" })).toBeInTheDocument();
+
+    await userEvent.click(within(leftWorkspace).getByRole("button", { name: "Open document statistics" }));
+
+    expect(screen.queryByRole("complementary", { name: "Source review" })).not.toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Document statistics" })).toHaveTextContent("18 words");
+
+    await userEvent.click(within(leftWorkspace).getByRole("button", { name: "Open paste special" }));
+
+    expect(screen.queryByRole("complementary", { name: "Document statistics" })).not.toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Paste special" })).toBeInTheDocument();
+
+    await userEvent.click(within(leftWorkspace).getByRole("button", { name: "Open document outline" }));
+
+    expect(screen.queryByRole("complementary", { name: "Paste special" })).not.toBeInTheDocument();
+    expect(within(leftWorkspace).getByRole("navigation", { name: "Document outline" })).toBeInTheDocument();
+  });
+
+  it("adds and selects document tabs in the left workspace", async () => {
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    const tabList = screen.getByRole("tablist", { name: "Document tabs" });
+    expect(within(tabList).getByRole("tab", { name: "Tab 1" })).toHaveAttribute("aria-selected", "true");
+
+    await userEvent.click(screen.getByRole("button", { name: "Add document tab" }));
+
+    expect(within(tabList).getByRole("tab", { name: "Tab 2" })).toHaveAttribute("aria-selected", "true");
+
+    await userEvent.click(within(tabList).getByRole("tab", { name: "Tab 1" }));
+
+    expect(within(tabList).getByRole("tab", { name: "Tab 1" })).toHaveAttribute("aria-selected", "true");
+    expect(within(tabList).getByRole("tab", { name: "Tab 2" })).toHaveAttribute("aria-selected", "false");
   });
 
   it("shows document statistics and imports paste-special content into the canonical editor", async () => {
