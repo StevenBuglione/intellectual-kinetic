@@ -28,6 +28,7 @@ export function serializeCanonicalDocumentToLatex(
     "\\usepackage[margin=1in]{geometry}",
     "\\usepackage[scaled]{helvet}",
     "\\usepackage{xcolor}",
+    "\\usepackage{array}",
     "\\renewcommand{\\familydefault}{\\sfdefault}",
     "\\setlength{\\parindent}{0pt}",
     "\\setlength{\\parskip}{0.75em}",
@@ -35,7 +36,8 @@ export function serializeCanonicalDocumentToLatex(
     "\\newcommand{\\IkHeadingTwo}[1]{{\\fontsize{17pt}{22pt}\\selectfont\\bfseries #1}\\par\\vspace{0.3em}}",
     "\\newcommand{\\IkHeadingThree}[1]{{\\fontsize{14pt}{18pt}\\selectfont\\bfseries #1}\\par\\vspace{0.25em}}",
     "\\newcommand{\\IkTheoremBlock}[1]{\\par\\vspace{0.6em}\\noindent\\hspace{0.25in}\\begin{minipage}{0.86\\linewidth}#1\\end{minipage}\\par\\vspace{0.6em}}",
-    "\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}{0.68\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}",
+    "\\newcommand{\\IkTableCell}[2]{\\fbox{\\begin{minipage}[t][0.34in][c]{#1}\\raggedright #2\\end{minipage}}}",
+    "\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][1.0in][c]{0.68\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}",
     "\\makeatletter\\let\\ps@plain\\ps@empty\\makeatother",
     "\\pagestyle{empty}",
     "\\begin{document}",
@@ -85,11 +87,11 @@ function serializeBlock(
   }
 
   if (block.type === "list") {
+    const environment = block.ordered ? "enumerate" : "itemize";
     return [
-      ...block.items.map((item, index) => {
-        const marker = block.ordered ? `${index + 1}.` : "\\textbullet{}";
-        return `${marker} ${serializeInline(item.children, block, labels, diagnostics)}\\\\`;
-      }),
+      `\\begin{${environment}}`,
+      ...block.items.map((item) => `\\item ${serializeInline(item.children, block, labels, diagnostics)}`),
+      `\\end{${environment}}`,
       "",
     ];
   }
@@ -97,15 +99,20 @@ function serializeBlock(
   if (block.type === "table") {
     const caption = block.caption ? serializeInline(block.caption, block, labels, diagnostics) : "";
     const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
-    const rows = block.rows.map((row) => (
-      `${row.cells.map((cell) => serializeInline(cell.children, block, labels, diagnostics)).join(" \\hspace{2em} ")}\\\\`
-    ));
+    const columnCount = Math.max(1, ...block.rows.map((row) => row.cells.length));
+    const cellWidth = `${(6 / columnCount).toFixed(2)}in`;
+    const rows = block.rows.map((row, index) => {
+      const rowBreak = index === block.rows.length - 1 ? "" : "\\\\[-\\fboxrule]";
+      return `\\noindent${row.cells.map((cell) => {
+        const contents = serializeInline(cell.children, block, labels, diagnostics);
+        return `\\IkTableCell{${cellWidth}}{${cell.header ? `\\textbf{${contents}}` : contents}}`;
+      }).join("")}${rowBreak}`;
+    });
 
     return [
       caption ? `\\textbf{${caption}}${label}` : label,
-      "\\begin{flushleft}",
+      "\\par\\vspace{0.35em}",
       ...rows,
-      "\\end{flushleft}",
       "",
     ];
   }

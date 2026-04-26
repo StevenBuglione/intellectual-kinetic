@@ -12,6 +12,7 @@ describe("deterministic LaTeX serializer", () => {
     expect(result.source).toContain("\\documentclass{book}");
     expect(result.source).toContain("\\usepackage{amsmath}");
     expect(result.source).toContain("\\usepackage[margin=1in]{geometry}");
+    expect(result.source).toContain("\\usepackage{array}");
     expect(result.source).toContain("\\renewcommand{\\familydefault}{\\sfdefault}");
     expect(result.source).toContain("\\IkHeadingOne{A Treatise on Motion}");
     expect(result.source).toContain("Let \\(v\\) denote velocity and cite \\texttt{@newton1687}.");
@@ -47,10 +48,11 @@ describe("deterministic LaTeX serializer", () => {
     const result = serializeCanonicalDocumentToLatex(gateOneStructureFixture);
 
     expect(result.diagnostics).toEqual([]);
-    expect(result.source).toContain("\\textbullet{} Recover list semantics");
+    expect(result.source).toContain("\\begin{itemize}");
+    expect(result.source).toContain("\\item Recover list semantics");
     expect(result.source).toContain("\\textbf{Restoration checks}\\label{tab:checks}");
-    expect(result.source).toContain("\\begin{flushleft}");
-    expect(result.source).toContain("Check \\hspace{2em} Status");
+    expect(result.source).toContain("\\IkTableCell{3.00in}{\\textbf{Check}}\\IkTableCell{3.00in}{\\textbf{Status}}");
+    expect(result.source).toContain("\\IkTableCell{3.00in}{PDF image}\\IkTableCell{3.00in}{Verified}");
     expect(result.source).toContain("\\IkFigurePlaceholder{Source scan placeholder}{Source scan placeholder\\label{fig:source-scan}}");
     expect(result.source).toContain("\\newpage");
   });

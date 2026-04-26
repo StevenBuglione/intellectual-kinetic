@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "verify:fixtures": "vitest run src/lib/verification/__tests__/fixture-runner.test.ts",
+    "verify:visual": "vitest run src/lib/verification/__tests__/visual-parity.test.ts",
+    "verify:gates": "npm run verify:fixtures && npm run verify:visual",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
