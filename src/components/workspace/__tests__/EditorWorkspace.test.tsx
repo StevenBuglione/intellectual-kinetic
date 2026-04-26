@@ -233,6 +233,28 @@ describe("EditorWorkspace", () => {
     expect(within(findDialog).getByRole("searchbox", { name: "Find text" })).toHaveFocus();
   });
 
+  it("lists document headings in the outline and updates when headings are inserted", async () => {
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    const outline = screen.getByRole("navigation", { name: "Document outline" });
+    expect(within(outline).getByRole("button", { name: "A Treatise on Motion" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Paste special" }));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Paste format" }), "latex");
+    await userEvent.click(screen.getByRole("textbox", { name: "Paste source" }));
+    await userEvent.paste("\\section{Imported Section}\nImported body.");
+    await userEvent.click(screen.getByRole("button", { name: "Insert paste" }));
+
+    const importedOutlineItem = await within(outline).findByRole("button", { name: "Imported Section" });
+    await userEvent.click(importedOutlineItem);
+
+    expect(importedOutlineItem).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("heading", { level: 1, name: "Imported Section" })).toBeInTheDocument();
+  });
+
   it("shows document statistics and imports paste-special content into the canonical editor", async () => {
     render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
 

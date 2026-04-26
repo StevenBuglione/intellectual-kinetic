@@ -164,6 +164,46 @@ async function main() {
       throw new Error(`Expected one math block before replace, saw text:\n${initialText}`);
     }
 
+    const outline = page.getByRole("navigation", { name: "Document outline" });
+    const initialOutlineHeading = outline.getByRole("button", { name: "A Treatise on Motion" });
+    await initialOutlineHeading.waitFor({ state: "visible" });
+    const initialOutlineCurrent = await initialOutlineHeading.getAttribute("aria-current");
+    if (initialOutlineCurrent !== "true") {
+      throw new Error(`Expected the first document heading to be current in the outline, got ${initialOutlineCurrent}.`);
+    }
+
+    await page.getByRole("button", { name: "Paste special" }).click();
+    const pastePanel = page.getByRole("complementary", { name: "Paste special" });
+    await pastePanel.getByRole("combobox", { name: "Paste format" }).selectOption("latex");
+    await pastePanel.getByRole("textbox", { name: "Paste source" }).fill("\\section{Imported Section}\nImported body.");
+    await pastePanel.getByRole("button", { name: "Insert paste" }).click();
+    const importedOutlineHeading = outline.getByRole("button", { name: "Imported Section" });
+    await importedOutlineHeading.waitFor({ state: "visible" });
+    await importedOutlineHeading.click();
+    const importedOutlineCurrent = await importedOutlineHeading.getAttribute("aria-current");
+    if (importedOutlineCurrent !== "true") {
+      throw new Error(`Expected clicked outline heading to become current, got ${importedOutlineCurrent}.`);
+    }
+    const focusedCanonicalSelection = await page.evaluate(() => {
+      const selection = window.getSelection();
+      const anchorElement = selection?.anchorNode instanceof Element
+        ? selection.anchorNode
+        : selection?.anchorNode?.parentElement;
+      const canonicalElement = anchorElement?.closest("[data-canonical-id], [canonicalid]");
+
+      return {
+        id: canonicalElement?.getAttribute("data-canonical-id")
+          ?? canonicalElement?.getAttribute("canonicalid")
+          ?? null,
+        text: canonicalElement?.textContent ?? "",
+      };
+    });
+    if (!focusedCanonicalSelection.text.includes("Imported Section")) {
+      throw new Error(
+        `Outline click did not move the editor selection to the imported heading; focused ${JSON.stringify(focusedCanonicalSelection)}.`,
+      );
+    }
+
     await page.keyboard.press(process.platform === "darwin" ? "Meta+F" : "Control+F");
     const findDialog = page.getByRole("dialog", { name: "Find and replace" });
     await findDialog.waitFor({ state: "visible" });
@@ -288,7 +328,7 @@ async function main() {
       throw new Error(`Browser console errors were emitted:\n${consoleErrors.join("\n")}`);
     }
 
-    console.log("Editor workflow browser verification passed: Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
+    console.log("Editor workflow browser verification passed: document outline navigation, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
   } finally {
     if (browser) {
       await browser.close();

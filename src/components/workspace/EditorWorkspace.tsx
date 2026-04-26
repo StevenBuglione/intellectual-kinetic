@@ -70,6 +70,12 @@ type EditorWorkspaceProps = {
   initialDocument: CanonicalDocument;
 };
 
+type DocumentOutlineHeading = {
+  id: string;
+  level: 1 | 2 | 3;
+  title: string;
+};
+
 type FindHighlightState = {
   decorations: DecorationSet;
 };
@@ -129,6 +135,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [findStatus, setFindStatus] = useState<{ activeIndex: number; total: number } | null>(null);
   const [findCursor, setFindCursor] = useState(-1);
   const findInputRef = useRef<HTMLInputElement | null>(null);
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
   const [replacementCount, setReplacementCount] = useState<number | null>(null);
   const [pasteFormat, setPasteFormat] = useState<PasteSpecialFormat>("latex");
   const [pasteSource, setPasteSource] = useState("");
@@ -147,6 +154,20 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const usingTexDerivedEditorSurface = texEditorPageBoxes.length > 0;
   const latex = useMemo(() => serializeCanonicalDocumentToLatex(document), [document]);
   const documentStatistics = useMemo(() => calculateDocumentStatistics(document), [document]);
+  const documentOutlineHeadings = useMemo<DocumentOutlineHeading[]>(() => document.blocks
+    .filter((block): block is Extract<CanonicalDocument["blocks"][number], { type: "heading" }> => block.type === "heading")
+    .map((block) => ({
+      id: block.id,
+      level: block.level,
+      title: inlineTextContent(block.children) || "Untitled heading",
+    })), [document.blocks]);
+  const currentOutlineHeadingId = useMemo(() => {
+    if (documentOutlineHeadings.some((heading) => heading.id === activeHeadingId)) {
+      return activeHeadingId;
+    }
+
+    return documentOutlineHeadings[0]?.id ?? null;
+  }, [activeHeadingId, documentOutlineHeadings]);
   const pdfTextVerification = useMemo(
     () => compareCanonicalDocumentToPdfText(document, compiledPreview?.extractedText),
     [compiledPreview?.extractedText, document],
@@ -377,6 +398,34 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
 
     setPasteSource("");
     applyDocumentUpdate(nextDocument);
+  }
+
+  function focusOutlineHeading(headingId: string) {
+    setActiveHeadingId(headingId);
+
+    const headingElement = findCanonicalElement(headingId);
+    if (typeof headingElement?.scrollIntoView === "function") {
+      headingElement.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+
+    if (!editor) {
+      return;
+    }
+
+    let blockPosition: number | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.attrs?.canonicalId === headingId || node.attrs?.["data-canonical-id"] === headingId) {
+        blockPosition = pos;
+        return false;
+      }
+
+      return true;
+    });
+
+    if (blockPosition !== null) {
+      editor.view.dispatch(editor.state.tr.setSelection(Selection.near(editor.state.doc.resolve(blockPosition + 1), 1)));
+      editor.view.focus();
+    }
   }
 
   const compilePdfPreview = useCallback(async () => {
@@ -632,7 +681,24 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
               <FileText size={16} />
               Tab 1
             </button>
-            <p>Headings you add to the document will appear here.</p>
+            <nav className="ik-doc-outline" aria-label="Document outline">
+              <h3>Outline</h3>
+              {documentOutlineHeadings.length > 0 ? (
+                documentOutlineHeadings.map((heading) => (
+                  <button
+                    className={`ik-doc-outline-item ik-doc-outline-level-${heading.level}`}
+                    key={heading.id}
+                    type="button"
+                    aria-current={currentOutlineHeadingId === heading.id ? "true" : undefined}
+                    onClick={() => focusOutlineHeading(heading.id)}
+                  >
+                    {heading.title}
+                  </button>
+                ))
+              ) : (
+                <p>Headings you add to the document will appear here.</p>
+              )}
+            </nav>
           </aside>
 
           {reviewOpen ? (
@@ -1003,6 +1069,41 @@ function replaceEditorTextRanges(editor: Editor, matches: EditorTextMatch[], rep
   }
 
   editor.view.dispatch(transaction);
+}
+
+function inlineTextContent(children: CanonicalInline[]): string {
+  return children.map((child) => {
+    if (child.type === "text") {
+      return child.text;
+    }
+
+    if (child.type === "math_inline") {
+      return child.tex;
+    }
+
+    if (child.type === "citation") {
+      return `@${child.key}`;
+    }
+
+    if (child.type === "reference") {
+      return child.target;
+    }
+
+    if (child.type === "footnote" || child.type === "language_span" || child.type === "comment") {
+      return inlineTextContent(child.children);
+    }
+
+    return "";
+  }).join("").trim();
+}
+
+function findCanonicalElement(canonicalId: string): HTMLElement | null {
+  const candidates = document.querySelectorAll<HTMLElement>("[data-canonical-id], [canonicalid]");
+
+  return Array.from(candidates).find((candidate) => (
+    candidate.getAttribute("data-canonical-id") === canonicalId
+    || candidate.getAttribute("canonicalid") === canonicalId
+  )) ?? null;
 }
 
 function textblockSearchCharacters(node: ProseMirrorNode, blockPosition: number): SearchCharacter[] {
