@@ -801,6 +801,26 @@ button {
   font-size: 13px;
 }
 
+.ik-pdf-verification {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(16, 185, 129, 0.34);
+  border-radius: 999px;
+  color: #047857;
+  background: rgba(16, 185, 129, 0.1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ik-pdf-verification-warning {
+  border-color: rgba(245, 158, 11, 0.38);
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.11);
+}
+
 .ik-source-panel pre {
   display: grid;
   gap: 2px;

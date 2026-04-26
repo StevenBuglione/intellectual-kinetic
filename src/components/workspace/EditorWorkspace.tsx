@@ -40,7 +40,7 @@ import {
   Undo2,
   Video,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
 import type { LatexCompileResult } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
@@ -83,6 +83,10 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [compileState, setCompileState] = useState<"idle" | "compiling" | "compiled" | "failed">("idle");
   const [compiledPreview, setCompiledPreview] = useState<LatexCompileResult | null>(null);
   const latex = useMemo(() => serializeCanonicalDocumentToLatex(document), [document]);
+  const pdfTextVerification = useMemo(
+    () => verifyPdfTextContainsCurrentDocument(document, compiledPreview?.extractedText),
+    [compiledPreview?.extractedText, document],
+  );
 
   useEffect(() => {
     const mountEditor = window.setTimeout(() => setEditorMountKey(1), 0);
@@ -147,8 +151,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     }
   }
 
-  async function openPdfPreview() {
-    setPdfOpen(true);
+  const compilePdfPreview = useCallback(async () => {
     if (compiledPreview || compileState === "compiling" || typeof fetch === "undefined") {
       return;
     }
@@ -178,7 +181,24 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       });
       setCompileState("failed");
     }
+  }, [compileState, compiledPreview, document]);
+
+  async function openPdfPreview() {
+    setPdfOpen(true);
+    await compilePdfPreview();
   }
+
+  useEffect(() => {
+    if (!pdfOpen || compiledPreview || compileState !== "idle") {
+      return;
+    }
+
+    const compileAfterEdit = window.setTimeout(() => {
+      void compilePdfPreview();
+    }, 450);
+
+    return () => window.clearTimeout(compileAfterEdit);
+  }, [compilePdfPreview, compileState, compiledPreview, pdfOpen]);
 
   return (
     <main className="ik-doc-shell">
@@ -401,6 +421,16 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             <p className="ik-diagnostic-count">
               {(compiledPreview?.diagnostics.length ?? latex.diagnostics.length)} diagnostics
             </p>
+            {compiledPreview?.status === "compiled" && pdfTextVerification.verified ? (
+              <div className="ik-pdf-verification" aria-label="PDF text verification">
+                <CheckCircle2 size={16} />
+                <span>PDF text verified from current AST</span>
+              </div>
+            ) : compiledPreview?.status === "compiled" && compiledPreview.extractedText ? (
+              <div className="ik-pdf-verification ik-pdf-verification-warning" aria-label="PDF text verification">
+                <span>PDF text missing current AST text</span>
+              </div>
+            ) : null}
           </aside>
         ) : null}
 
@@ -476,4 +506,42 @@ function renderInlineFallback(child: CanonicalInline, index: number) {
   }
 
   return null;
+}
+
+function verifyPdfTextContainsCurrentDocument(
+  document: CanonicalDocument,
+  extractedText: string | undefined,
+) {
+  if (!extractedText) {
+    return { verified: false, missing: [] };
+  }
+
+  const normalizedPdfText = normalizeComparableText(extractedText);
+  const expectedSnippets = document.blocks.flatMap((block) => {
+    if (block.type === "heading" || block.type === "paragraph" || block.type === "theorem") {
+      return block.children.flatMap((child) => {
+        if (child.type === "text" && child.text.trim().length > 0) {
+          return [child.text];
+        }
+
+        return [];
+      });
+    }
+
+    if (block.type === "math_display") {
+      return [block.tex];
+    }
+
+    return [];
+  });
+  const missing = expectedSnippets.filter((snippet) => !normalizedPdfText.includes(normalizeComparableText(snippet)));
+
+  return {
+    verified: missing.length === 0,
+    missing,
+  };
+}
+
+function normalizeComparableText(value: string): string {
+  return value.replace(/\s+/g, "").trim();
 }

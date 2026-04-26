@@ -13,6 +13,7 @@ export type LatexCompileResult = {
   status: "compiled" | "failed";
   artifactName: string;
   pdfBase64?: string;
+  extractedText?: string;
   log: string;
   diagnostics: LatexDiagnostic[];
 };
@@ -28,13 +29,16 @@ export async function compileCanonicalDocumentToPdf(
   try {
     await writeFile(texFile, serialized.source, "utf8");
     const compile = await runPdflatex(workingDirectory);
-    const pdf = await readFile(path.join(workingDirectory, "main.pdf"));
+    const pdfPath = path.join(workingDirectory, "main.pdf");
+    const pdf = await readFile(pdfPath);
+    const extractedText = await extractPdfText(pdfPath);
     await persistPreviewArtifact(artifactName, pdf);
 
     return {
       status: "compiled",
       artifactName,
       pdfBase64: pdf.toString("base64"),
+      extractedText,
       log: compile.stdout + compile.stderr,
       diagnostics: serialized.diagnostics,
     };
@@ -68,6 +72,15 @@ async function runPdflatex(cwd: string) {
       maxBuffer: 1024 * 1024 * 4,
     },
   );
+}
+
+async function extractPdfText(pdfPath: string): Promise<string> {
+  const result = await execFileAsync("pdftotext", [pdfPath, "-"], {
+    timeout: 10_000,
+    maxBuffer: 1024 * 1024 * 4,
+  });
+
+  return result.stdout;
 }
 
 async function persistPreviewArtifact(artifactName: string, pdf: Buffer) {

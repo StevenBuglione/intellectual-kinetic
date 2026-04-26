@@ -48,6 +48,26 @@ export async function runParityFixtureVerification(): Promise<FixtureVerificatio
       errors.push("PDF compilation failed.");
     }
 
+    const expectedText = fixture.blocks.flatMap((block) => {
+      if (block.type === "paragraph" || block.type === "heading" || block.type === "theorem") {
+        return block.children.flatMap((child) => (child.type === "text" ? [child.text.trim()] : []));
+      }
+
+      if (block.type === "math_display") {
+        return [block.tex.replaceAll(" ", "")];
+      }
+
+      return [];
+    }).filter(Boolean);
+
+    const extractedText = normalizePdfText(pdf.extractedText ?? "");
+    const missingText = expectedText.filter((text) => !extractedText.includes(normalizePdfText(text)));
+    if (pdf.status === "compiled" && missingText.length === 0) {
+      checks.push("pdf-text-extraction");
+    } else {
+      errors.push(`PDF text extraction did not contain expected fixture text: ${missingText.join(", ")}`);
+    }
+
     return {
       id: fixture.id,
       checks,
@@ -59,4 +79,8 @@ export async function runParityFixtureVerification(): Promise<FixtureVerificatio
     status: fixtureReports.every((fixture) => fixture.errors.length === 0) ? "passed" : "failed",
     fixtures: fixtureReports,
   };
+}
+
+function normalizePdfText(value: string): string {
+  return value.replace(/\s+/g, " ").replaceAll(" ", "").trim();
 }

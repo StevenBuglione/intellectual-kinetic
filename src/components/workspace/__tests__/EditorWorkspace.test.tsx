@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { EditorWorkspace } from "../EditorWorkspace";
 
@@ -36,6 +36,20 @@ describe("EditorWorkspace", () => {
   });
 
   it("reveals source, review, and PDF preview panels on demand", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      status: "compiled",
+      artifactName: "fixture-restoration-foundation-preview.pdf",
+      pdfBase64: "JVBERi0xLjQ=",
+      log: "compiled",
+      diagnostics: [],
+      extractedText: [
+        "A Treatise on Motion",
+        "Let v denote velocity and cite.",
+        "Uniform motion preserves proportional distance.",
+        "s = vt",
+      ].join("\n"),
+    }), { status: 200, headers: { "content-type": "application/json" } })));
+
     render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
 
     await userEvent.click(screen.getByRole("button", { name: /show source/i }));
@@ -50,5 +64,6 @@ describe("EditorWorkspace", () => {
     expect(within(sourcePanel).getByText("0 diagnostics")).toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "Source review" })).toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "PDF preview" })).toBeInTheDocument();
+    expect(await screen.findByText("PDF text verified from current AST")).toBeInTheDocument();
   });
 });
