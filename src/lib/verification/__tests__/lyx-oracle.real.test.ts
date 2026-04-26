@@ -10,11 +10,27 @@ describeRealLyx("real LyX oracle verification", () => {
 
     expect(report.status).toBe("passed");
     expect(report.coveredFeatureIds).toEqual(expect.arrayContaining([
+      "bibliography-insert-manage",
+      "branch-conditional-content",
+      "caption-management",
+      "cjk-and-rtl-support",
       "docclass-select",
       "doc-metadata-settings",
+      "encoding-selection-validation",
+      "figure-and-table-floats",
+      "formal-booktabs-style",
+      "graphics-insert-configure",
       "inline-and-display-math",
+      "index-entry-insert",
       "latex-export",
+      "longtable-mode",
+      "master-document-linking",
+      "multilingual-language-selection",
+      "nomenclature-and-glossary",
       "sectioning-hierarchy",
+      "table-cell-merge-and-span",
+      "table-insert-edit",
+      "titlepage-and-frontmatter",
     ]));
     expect(report.fixtures).toEqual(expect.arrayContaining([
       expect.objectContaining({

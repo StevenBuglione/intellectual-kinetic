@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -122,17 +122,15 @@ async function runLyxOracleFixture(
 async function exportLyxToLatex(fixture: LyxOracleFixture): Promise<LyxExportResult> {
   const workingDirectory = await mkdtemp(path.join(tmpdir(), "ik-lyx-oracle-"));
   const userDirectory = path.join(workingDirectory, "userdir");
-  const inputPath = path.join(workingDirectory, path.basename(fixture.lyxPath));
   const outputPath = path.join(workingDirectory, "oracle.tex");
 
   try {
     await mkdir(userDirectory, { recursive: true });
-    await copyFile(fixture.lyxPath, inputPath);
     const result = await execFileAsync(
       "lyx",
-      ["-userdir", userDirectory, "-E", "latex", outputPath, inputPath],
+      ["-userdir", userDirectory, "-E", "latex", outputPath, fixture.lyxPath],
       {
-        cwd: workingDirectory,
+        cwd: path.dirname(fixture.lyxPath),
         timeout: 60_000,
         maxBuffer: 1024 * 1024 * 8,
       },
