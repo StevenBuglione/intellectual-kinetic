@@ -10,6 +10,7 @@ import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Link from "next/link";
 import {
   AlignLeft,
   Bold,
@@ -20,18 +21,27 @@ import {
   FileCode2,
   FileText,
   Highlighter,
+  Image as ImageIcon,
   Italic,
-  Link,
+  Link as LinkIcon,
   List,
+  Lock,
+  MessageSquare,
   PanelLeftOpen,
   PanelRightOpen,
+  Paintbrush,
   Printer,
   Redo2,
   Save,
+  Search,
+  SpellCheck,
+  Star,
+  Underline,
   Undo2,
+  Video,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import type { CanonicalDocument } from "@/lib/editor-core/types";
+import { useEffect, useMemo, useState } from "react";
+import type { CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
 import type { LatexCompileResult } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
 import {
@@ -68,13 +78,21 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [editorMountKey, setEditorMountKey] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [compileState, setCompileState] = useState<"idle" | "compiling" | "compiled" | "failed">("idle");
   const [compiledPreview, setCompiledPreview] = useState<LatexCompileResult | null>(null);
   const latex = useMemo(() => serializeCanonicalDocumentToLatex(document), [document]);
 
+  useEffect(() => {
+    const mountEditor = window.setTimeout(() => setEditorMountKey(1), 0);
+
+    return () => window.clearTimeout(mountEditor);
+  }, []);
+
   const editor = useEditor({
     immediatelyRender: false,
+    shouldRerenderOnTransaction: true,
     extensions: [
       StarterKit,
       MathInline,
@@ -109,7 +127,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
         setCompileState("idle");
       }
     },
-  });
+  }, [editorMountKey]);
 
   async function saveDocument() {
     setSaveState("saving");
@@ -166,13 +184,18 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     <main className="ik-doc-shell">
       <header className="ik-doc-chrome">
         <div className="ik-doc-titlebar">
-          <div className="ik-doc-badge">
+          <Link className="ik-doc-badge" href="/" aria-label="Docs home">
             <FileText size={22} />
-          </div>
+          </Link>
           <div className="ik-doc-title-stack">
-            <input aria-label="Document title" value={document.title} readOnly />
+            <div className="ik-doc-title-line">
+              <input aria-label="Document title" value={document.title} readOnly />
+              <button className="ik-doc-title-icon" type="button" aria-label="Star">
+                <Star size={17} />
+              </button>
+            </div>
             <nav aria-label="Document menu" role="menubar" className="ik-doc-menubar">
-              {["File", "Edit", "View", "Insert", "Format", "Tools", "Review", "Help"].map((item) => (
+              {["File", "Edit", "View", "Insert", "Format", "Tools", "Extensions", "Help"].map((item) => (
                 <button key={item} role="menuitem" type="button">
                   {item}
                 </button>
@@ -180,7 +203,17 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             </nav>
           </div>
           <div className="ik-doc-actions">
-            <span className="ik-status-chip">
+            <button className="ik-doc-icon ik-doc-top-icon" type="button" aria-label="Show all comments">
+              <MessageSquare size={18} />
+            </button>
+            <button className="ik-doc-icon ik-doc-top-icon" type="button" aria-label="Join a call here">
+              <Video size={18} />
+            </button>
+            <button className="ik-doc-share-button" type="button">
+              <Lock size={16} />
+              Share
+            </button>
+            <span className="ik-status-chip" aria-label="Persistence status">
               <CheckCircle2 size={16} />
               AST source of truth
             </span>
@@ -197,6 +230,17 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
         </div>
 
         <div className="ik-doc-toolbar" role="toolbar" aria-label="Formatting toolbar">
+          <label className="ik-doc-menu-search">
+            <Search size={16} aria-hidden="true" />
+            <input
+              role="combobox"
+              aria-label="Search the menus"
+              aria-controls="ik-doc-menu-search-results"
+              aria-expanded="false"
+              readOnly
+            />
+            <span id="ik-doc-menu-search-results" role="listbox" hidden />
+          </label>
           <button type="button" className="ik-doc-icon" aria-label="Undo" onClick={() => editor?.chain().focus().undo().run()}>
             <Undo2 size={16} />
           </button>
@@ -206,6 +250,12 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
           <button type="button" className="ik-doc-icon" aria-label="Print">
             <Printer size={16} />
           </button>
+          <button type="button" className="ik-doc-icon" aria-label="Spelling and grammar check">
+            <SpellCheck size={16} />
+          </button>
+          <button type="button" className="ik-doc-icon" aria-label="Paint format">
+            <Paintbrush size={16} />
+          </button>
           <span className="ik-doc-divider" />
           <button type="button" className="ik-doc-select">
             100%
@@ -214,10 +264,16 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             Normal text
           </button>
           <button type="button" className="ik-doc-select">
-            Inter
+            Arial
+          </button>
+          <button type="button" className="ik-doc-icon" aria-label="Decrease font size">
+            -
           </button>
           <button type="button" className="ik-doc-size">
             11
+          </button>
+          <button type="button" className="ik-doc-icon" aria-label="Increase font size">
+            +
           </button>
           <span className="ik-doc-divider" />
           <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().toggleBold().run()} aria-label="Bold">
@@ -226,11 +282,17 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
           <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().toggleItalic().run()} aria-label="Italic">
             <Italic size={16} />
           </button>
+          <button type="button" className="ik-doc-icon" aria-label="Underline">
+            <Underline size={16} />
+          </button>
           <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().toggleHighlight?.().run()} aria-label="Highlight">
             <Highlighter size={16} />
           </button>
           <button type="button" className="ik-doc-icon" aria-label="Link">
-            <Link size={16} />
+            <LinkIcon size={16} />
+          </button>
+          <button type="button" className="ik-doc-icon" aria-label="Insert image">
+            <ImageIcon size={16} />
           </button>
           <span className="ik-doc-divider" />
           <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().toggleBulletList().run()} aria-label="Bulleted list">
@@ -246,15 +308,18 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             <Columns3 size={16} />
           </button>
           <span className="ik-doc-divider" />
-          <button className="ik-doc-panel-button" type="button" onClick={() => setReviewOpen((open) => !open)}>
+          <button className="ik-doc-panel-button" type="button" aria-label="Editing mode">
+            Editing
+          </button>
+          <button className="ik-doc-panel-button" type="button" aria-pressed={reviewOpen} onClick={() => setReviewOpen((open) => !open)}>
             <PanelLeftOpen size={16} />
             Review
           </button>
-          <button className="ik-doc-panel-button" type="button" onClick={openPdfPreview}>
+          <button className="ik-doc-panel-button" type="button" aria-pressed={pdfOpen} onClick={openPdfPreview}>
             <FileCode2 size={16} />
             PDF preview
           </button>
-          <button className="ik-doc-panel-button" type="button" onClick={() => setSourceOpen((open) => !open)}>
+          <button className="ik-doc-panel-button" type="button" aria-pressed={sourceOpen} onClick={() => setSourceOpen((open) => !open)}>
             <PanelRightOpen size={16} />
             {sourceOpen ? "Hide source" : "Show source"}
           </button>
@@ -269,32 +334,50 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
           sourceOpen ? "ik-doc-workspace-source-open" : "",
         ].join(" ")}
       >
-        {reviewOpen ? (
-          <aside className="ik-doc-side-panel" aria-label="Source review">
-            <div className="ik-panel-title">
-              <FileText size={18} />
-              Source regions
-            </div>
-            {document.blocks.map((block) => (
-              <button className="ik-region" key={block.id} type="button">
-                <span>{block.provenance?.sourceRegionId ?? block.id}</span>
-                <strong>{Math.round((block.provenance?.confidence ?? 0.75) * 100)}%</strong>
+        <div className="ik-doc-left-stack">
+          <aside className="ik-doc-tabs-rail" aria-label="Document tabs">
+            <div className="ik-tabs-topline">
+              <button type="button" aria-label="Hide tabs and outlines">
+                ←
               </button>
-            ))}
+              <span>+</span>
+            </div>
+            <h2>Document tabs</h2>
+            <button className="ik-doc-tab-active" type="button" aria-current="true">
+              <FileText size={16} />
+              Tab 1
+            </button>
+            <p>Headings you add to the document will appear here.</p>
           </aside>
-        ) : null}
+
+          {reviewOpen ? (
+            <aside className="ik-doc-side-panel" aria-label="Source review">
+              <div className="ik-panel-title">
+                <FileText size={18} />
+                Source regions
+              </div>
+              {document.blocks.map((block) => (
+                <button className="ik-region" key={block.id} type="button">
+                  <span>{block.provenance?.sourceRegionId ?? block.id}</span>
+                  <strong>{Math.round((block.provenance?.confidence ?? 0.75) * 100)}%</strong>
+                </button>
+              ))}
+            </aside>
+          ) : null}
+        </div>
 
         <section className="ik-doc-canvas" aria-label="Document editor">
-          <div className="ik-doc-ruler" aria-label="Document ruler">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
+          <div className="ik-doc-vertical-ruler" aria-label="Vertical ruler">
+            {["1", "2", "3", "4", "5", "6", "7"].map((tick) => (
+              <span key={tick}>{tick}</span>
+            ))}
           </div>
-          <EditorContent editor={editor} />
+          <div className="ik-doc-ruler" aria-label="Document ruler">
+            {["1", "2", "3", "4", "5", "6", "7"].map((tick) => (
+              <span key={tick}>{tick}</span>
+            ))}
+          </div>
+          {editor ? <EditorContent editor={editor} /> : <CanonicalDocumentFallback document={document} />}
         </section>
 
         {pdfOpen ? (
@@ -338,4 +421,59 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       </section>
     </main>
   );
+}
+
+function CanonicalDocumentFallback({ document }: { document: CanonicalDocument }) {
+  return (
+    <article className="ik-doc-editor-page" aria-label="Google Docs-style document page">
+      {document.blocks.map((block) => {
+        if (block.type === "heading") {
+          const HeadingTag = `h${block.level}` as "h1" | "h2" | "h3";
+          return <HeadingTag key={block.id}>{block.children.map(renderInlineFallback)}</HeadingTag>;
+        }
+
+        if (block.type === "paragraph") {
+          return <p key={block.id}>{block.children.map(renderInlineFallback)}</p>;
+        }
+
+        if (block.type === "math_display") {
+          return (
+            <pre key={block.id}>
+              <code className="language-latex">{block.tex}</code>
+            </pre>
+          );
+        }
+
+        if (block.type === "theorem") {
+          return <blockquote key={block.id}>{block.children.map(renderInlineFallback)}</blockquote>;
+        }
+
+        return null;
+      })}
+    </article>
+  );
+}
+
+function renderInlineFallback(child: CanonicalInline, index: number) {
+  if (child.type === "text") {
+    return child.text;
+  }
+
+  if (child.type === "math_inline") {
+    return (
+      <code className="ik-math-inline" key={`${child.tex}-${index}`}>
+        {`\\(${child.tex}\\)`}
+      </code>
+    );
+  }
+
+  if (child.type === "citation") {
+    return `[${child.key}]`;
+  }
+
+  if (child.type === "reference") {
+    return child.target;
+  }
+
+  return null;
 }

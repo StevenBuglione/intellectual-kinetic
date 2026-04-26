@@ -8,13 +8,25 @@ describe("EditorWorkspace", () => {
   it("renders a Google Docs-like editor chrome with secondary panels hidden by default", () => {
     render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
 
+    expect(screen.getByRole("link", { name: "Docs home" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Share$/i })).toBeInTheDocument();
     expect(screen.getByRole("menubar", { name: "Document menu" })).toHaveTextContent(
-      "FileEditViewInsertFormatToolsReviewHelp",
+      "FileEditViewInsertFormatToolsExtensionsHelp",
     );
+    expect(screen.getByRole("combobox", { name: "Search the menus" })).toBeInTheDocument();
     expect(screen.getByRole("toolbar", { name: "Formatting toolbar" })).toBeInTheDocument();
     expect(screen.getByText("100%")).toBeInTheDocument();
     expect(screen.getByText("Normal text")).toBeInTheDocument();
+    expect(screen.getByText("Arial")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Spelling and grammar check" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Paint format" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Underline" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Insert image" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editing mode" })).toBeInTheDocument();
     expect(screen.getByLabelText("Document ruler")).toBeInTheDocument();
+    expect(screen.getByLabelText("Vertical ruler")).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Document tabs" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tab 1" })).toHaveAttribute("aria-current", "true");
     expect(screen.getByLabelText("Google Docs-style document page")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "A Treatise on Motion" })).toBeInTheDocument();
     expect(screen.getByText("AST source of truth")).toBeInTheDocument();
@@ -30,6 +42,9 @@ describe("EditorWorkspace", () => {
     await userEvent.click(screen.getByRole("button", { name: /^Review$/i }));
     await userEvent.click(screen.getByRole("button", { name: /pdf preview/i }));
 
+    expect(screen.getByRole("button", { name: /hide source/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^Review$/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /pdf preview/i })).toHaveAttribute("aria-pressed", "true");
     const sourcePanel = screen.getByRole("complementary", { name: "Generated LaTeX source" });
     expect(within(sourcePanel).getByText("\\documentclass{book}")).toBeInTheDocument();
     expect(within(sourcePanel).getByText("0 diagnostics")).toBeInTheDocument();
