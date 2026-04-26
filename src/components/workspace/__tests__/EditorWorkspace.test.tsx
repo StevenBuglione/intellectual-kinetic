@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { gateFiveLyxBreadthFixture } from "@/fixtures/parity/gate-five-lyx-breadth";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { EditorWorkspace } from "../EditorWorkspace";
 
@@ -67,5 +68,39 @@ describe("EditorWorkspace", () => {
     expect(screen.getByRole("complementary", { name: "PDF preview" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Compiled PDF preview page" })).toBeInTheDocument();
     expect(await screen.findByText("PDF text matches editor")).toBeInTheDocument();
+  });
+
+  it("uses compiled TeX page images as the editor surface for advanced LyX fixtures", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      status: "compiled",
+      artifactName: "fixture-gate-five-lyx-breadth-preview.pdf",
+      pdfBase64: "JVBERi0xLjQ=",
+      previewImageBase64: "iVBORw0KGgo=",
+      previewPageImageBase64: ["iVBORw0KGgo=", "iVBORw0KGgo2"],
+      log: "compiled",
+      diagnostics: [],
+      extractedText: [
+        "Restored Universal Fixture",
+        "Breadth Coverage",
+        "Branch content exports into PDF.",
+      ].join("\n"),
+    }), { status: 200, headers: { "content-type": "application/json" } })));
+
+    render(<EditorWorkspace initialDocument={gateFiveLyxBreadthFixture} />);
+
+    expect(screen.queryByRole("region", { name: "TeX-derived editor surface" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /pdf preview/i }));
+
+    const texSurface = await screen.findByRole("region", { name: "TeX-derived editor surface" });
+    expect(within(texSurface).getByRole("img", { name: "TeX-derived editor page 1" })).toHaveAttribute(
+      "src",
+      "data:image/png;base64,iVBORw0KGgo=",
+    );
+    expect(within(texSurface).getByRole("img", { name: "TeX-derived editor page 2" })).toHaveAttribute(
+      "src",
+      "data:image/png;base64,iVBORw0KGgo2",
+    );
+    expect(screen.getByLabelText("Google Docs-style document page")).toHaveAttribute("aria-hidden", "true");
   });
 });

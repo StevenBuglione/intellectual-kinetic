@@ -45,6 +45,7 @@ import { compareCanonicalDocumentToPdfText } from "@/lib/editor-core/plaintext";
 import type { CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
 import type { LatexCompileResult } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
+import { resolveEditorParitySurface } from "@/lib/layout/parity-surface";
 import {
   canonicalToTiptapDocument,
   tiptapDocumentToCanonicalPatch,
@@ -83,6 +84,16 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [compileState, setCompileState] = useState<"idle" | "compiling" | "compiled" | "failed">("idle");
   const [compiledPreview, setCompiledPreview] = useState<LatexCompileResult | null>(null);
+  const editorParitySurface = useMemo(() => resolveEditorParitySurface(document), [document]);
+  const texDerivedEditorPageImages = useMemo(() => {
+    if (editorParitySurface !== "tex-derived" || compiledPreview?.status !== "compiled") {
+      return [];
+    }
+
+    return compiledPreview.previewPageImageBase64
+      ?? (compiledPreview.previewImageBase64 ? [compiledPreview.previewImageBase64] : []);
+  }, [compiledPreview, editorParitySurface]);
+  const usingTexDerivedEditorSurface = texDerivedEditorPageImages.length > 0;
   const latex = useMemo(() => serializeCanonicalDocumentToLatex(document), [document]);
   const pdfTextVerification = useMemo(
     () => compareCanonicalDocumentToPdfText(document, compiledPreview?.extractedText),
@@ -133,6 +144,20 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       }
     },
   }, [editorMountKey]);
+
+  useEffect(() => {
+    const editorElement = editor?.view.dom;
+    if (!editorElement) {
+      return;
+    }
+
+    if (usingTexDerivedEditorSurface) {
+      editorElement.setAttribute("aria-hidden", "true");
+      return;
+    }
+
+    editorElement.removeAttribute("aria-hidden");
+  }, [editor, usingTexDerivedEditorSurface]);
 
   async function saveDocument() {
     setSaveState("saving");
@@ -398,7 +423,12 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
               <span key={tick}>{tick}</span>
             ))}
           </div>
-          {editor ? <EditorContent editor={editor} /> : <CanonicalDocumentFallback document={document} />}
+          {usingTexDerivedEditorSurface ? (
+            <TexDerivedEditorSurface pageImages={texDerivedEditorPageImages} />
+          ) : null}
+          <div className={usingTexDerivedEditorSurface ? "ik-doc-live-editor-shadow" : undefined}>
+            {editor ? <EditorContent editor={editor} /> : <CanonicalDocumentFallback document={document} />}
+          </div>
         </section>
 
         {pdfOpen ? (
@@ -456,6 +486,23 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
         ) : null}
       </section>
     </main>
+  );
+}
+
+function TexDerivedEditorSurface({ pageImages }: { pageImages: string[] }) {
+  return (
+    <section className="ik-tex-editor-surface" aria-label="TeX-derived editor surface">
+      {pageImages.map((pageImage, index) => (
+        // The TeX-derived editor page is already a rasterized PDF page produced by pdftoppm.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt={`TeX-derived editor page ${index + 1}`}
+          className="ik-tex-editor-page"
+          key={`${pageImage.slice(0, 12)}-${index}`}
+          src={`data:image/png;base64,${pageImage}`}
+        />
+      ))}
+    </section>
   );
 }
 

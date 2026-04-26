@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { getVisualParityRatchet } from "@/fixtures/parity/visual-ratchets";
 import type { CanonicalDocument } from "@/lib/editor-core/types";
 import { compileCanonicalDocumentToPdf } from "@/lib/latex/compiler";
+import { documentUsesTexDerivedEditorSurface } from "@/lib/layout/parity-surface";
 import { pageLayoutContract, pagePixelCount } from "@/lib/layout/page-layout-contract";
 import { renderCanonicalDocumentPagesToEditorHtml } from "./editor-html-renderer";
 
@@ -222,30 +223,6 @@ async function writeTexDerivedEditorPageImages(workingDirectory: string, pdfImag
   }
 
   return outputPaths;
-}
-
-function documentUsesTexDerivedEditorSurface(document: CanonicalDocument): boolean {
-  return document.blocks.some(blockUsesTexDerivedEditorSurface);
-}
-
-function blockUsesTexDerivedEditorSurface(block: CanonicalDocument["blocks"][number]): boolean {
-  if (block.type === "front_matter" || block.type === "generated_list" || block.type === "branch") {
-    return true;
-  }
-
-  if (block.type === "table" && (block.layout?.booktabs || block.layout?.tableKind === "longtable")) {
-    return true;
-  }
-
-  if (block.type === "figure" && block.asset?.kind === "embedded") {
-    return true;
-  }
-
-  if (block.type === "include" && block.resolvedBlocks?.some(blockUsesTexDerivedEditorSurface)) {
-    return true;
-  }
-
-  return false;
 }
 
 async function renderEditorScreenshot(htmlPath: string, outputPath: string) {

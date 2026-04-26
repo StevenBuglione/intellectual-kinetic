@@ -1,4 +1,5 @@
 import type { CanonicalBlock, CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
+import { documentUsesTexDerivedEditorSurface } from "@/lib/layout/parity-surface";
 import { pageLayoutContract } from "@/lib/layout/page-layout-contract";
 
 const { page, typography, fonts, spacing, table, figure } = pageLayoutContract;
@@ -18,7 +19,7 @@ function renderCanonicalDocumentPageToEditorHtml(
   blocks: CanonicalBlock[],
   pageNumber: number,
 ): string {
-  const strictLyxLayout = documentUsesStrictLyxLayout(document);
+  const strictLyxLayout = documentUsesTexDerivedEditorSurface(document);
 
   return `<!doctype html>
 <html lang="${escapeHtmlAttribute(document.settings.language)}">
@@ -211,24 +212,6 @@ function renderCanonicalDocumentPageToEditorHtml(
     </article>
   </body>
 </html>`;
-}
-
-function documentUsesStrictLyxLayout(document: CanonicalDocument): boolean {
-  return document.blocks.some((block) => {
-    if (block.type === "front_matter" || block.type === "generated_list" || block.type === "branch") {
-      return true;
-    }
-
-    if (block.type === "table" && (block.layout?.booktabs || block.layout?.tableKind === "longtable")) {
-      return true;
-    }
-
-    if (block.type === "figure" && block.asset?.kind === "embedded") {
-      return true;
-    }
-
-    return false;
-  });
 }
 
 function splitCanonicalDocumentPages(document: CanonicalDocument): CanonicalBlock[][] {

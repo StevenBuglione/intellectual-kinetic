@@ -442,6 +442,32 @@ button {
   line-height: 1.5;
 }
 
+.ik-tex-editor-surface {
+  display: grid;
+  gap: 48px;
+  width: 816px;
+  margin: 0 auto 48px 0;
+}
+
+.ik-tex-editor-page {
+  display: block;
+  width: 816px;
+  height: 1056px;
+  border: 1px solid #dadce0;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3);
+  image-rendering: auto;
+}
+
+.ik-doc-live-editor-shadow {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .ik-doc-editor-page h1,
 .ik-doc-editor-page h2,
 .ik-doc-editor-page h3 {

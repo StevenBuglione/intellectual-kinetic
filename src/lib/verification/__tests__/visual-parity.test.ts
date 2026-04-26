@@ -75,8 +75,12 @@ describe("visual editor to PDF parity verification", () => {
     expect(layoutFixture?.thresholds.targetDifferentPixels).toBe(0);
 
     const lyxFixture = report.fixtures.find((fixture) => fixture.id === "fixture-gate-four-lyx-core");
+    expect(lyxFixture?.checks).toContain("tex-derived-editor-render");
     expect(lyxFixture?.checks).toContain("editor-pdf-page-sequence");
     expect(lyxFixture?.metrics.pageCount).toBe(1);
+    expect(lyxFixture?.metrics.pixelPerfect).toBe(true);
+    expect(lyxFixture?.metrics.differentPixels).toBe(0);
+    expect(lyxFixture?.metrics.rootMeanSquareDifference).toBe(0);
     expect(lyxFixture?.thresholds.targetDifferentPixels).toBe(0);
 
     const breadthFixture = report.fixtures.find((fixture) => fixture.id === "fixture-gate-five-lyx-breadth");
