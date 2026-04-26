@@ -39,6 +39,8 @@ Compose starts:
 - `npm run test` - run Vitest regression tests
 - `npm run verify:fixtures` - run the initial fixture-driven parity check
 - `npm run verify:visual` - render TextView fixture pages in headless Chrome, render every compiled PDF page to PNG, and fail on editor/PDF visual drift above the ratcheted budget
+- `npm run verify:editor-focus` - open the real editor in Playwright, compile the PDF preview, focus the editor, and fail if the preview recompiles or changes pixels
+- `npm run verify:lyx-oracle` - run LyX-backed oracle fixtures; uses a local `lyx` binary when available, otherwise builds and runs `Dockerfile.lyx-oracle`
 - `npm run verify:gates` - run semantic fixture gates and visual parity gates together
 
-`verify:visual` requires `pdflatex`, `pdftoppm`, ImageMagick `compare`/`identify`, and a Chrome-compatible browser. Set `IK_ARTIFACT_ROOT=.artifacts` to keep `editor.png`, `pdf.png`, and `diff.png` outputs for inspection. Fixture budgets live in code with a zero-difference target so parity improvements can ratchet the allowed drift downward. The fixture gate also asserts the PDF body font contract with `pdffonts`, and the visual gate tracks both changed pixels and RMSE intensity drift.
+`verify:visual` requires `pdflatex`, `pdftoppm`, ImageMagick `compare`/`identify`, and a Chrome-compatible browser. `verify:lyx-oracle` requires Docker if LyX is not installed locally. Set `IK_ARTIFACT_ROOT=.artifacts` to keep `editor.png`, `pdf.png`, and `diff.png` outputs for inspection. Fixture budgets live in code with a zero-difference target so parity improvements can ratchet the allowed drift downward. The fixture gate also asserts the PDF body font contract with `pdffonts`, and the visual gate tracks both changed pixels and RMSE intensity drift.
