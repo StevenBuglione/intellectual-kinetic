@@ -407,11 +407,16 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
               <FileCode2 size={18} />
               PDF preview
             </div>
-            {compileState === "compiled" && compiledPreview?.pdfBase64 ? (
-              <iframe
-                title="Compiled PDF preview"
-                src={`data:application/pdf;base64,${compiledPreview.pdfBase64}`}
-              />
+            {compileState === "compiled" && compiledPreview?.previewImageBase64 ? (
+              <div className="ik-pdf-page-scroll">
+                {/* The preview is a data URI generated from the compiled PDF, so next/image cannot optimize it. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className="ik-pdf-rendered-page"
+                  alt="Compiled PDF preview page"
+                  src={`data:image/png;base64,${compiledPreview.previewImageBase64}`}
+                />
+              </div>
             ) : (
               <div className="ik-pdf-placeholder">
                 <FileCode2 size={28} />

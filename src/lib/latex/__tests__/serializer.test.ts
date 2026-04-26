@@ -9,9 +9,11 @@ describe("deterministic LaTeX serializer", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.source).toContain("\\documentclass{book}");
     expect(result.source).toContain("\\usepackage{amsmath}");
-    expect(result.source).toContain("\\chapter*{A Treatise on Motion}");
+    expect(result.source).toContain("\\usepackage[margin=1in]{geometry}");
+    expect(result.source).toContain("\\renewcommand{\\familydefault}{\\sfdefault}");
+    expect(result.source).toContain("\\IkHeadingOne{A Treatise on Motion}");
     expect(result.source).toContain("Let \\(v\\) denote velocity and cite \\texttt{@newton1687}.");
-    expect(result.source).toContain("\\begin{quote}\\label{thm:motion}");
+    expect(result.source).toContain("\\IkTheoremBlock{\\label{thm:motion}Uniform motion preserves proportional distance.}");
     expect(result.source).toContain("\\label{eq:distance}\n\\[s = vt\\]");
     expect(result.source).toContain("s = vt");
   });

@@ -40,6 +40,7 @@ describe("EditorWorkspace", () => {
       status: "compiled",
       artifactName: "fixture-restoration-foundation-preview.pdf",
       pdfBase64: "JVBERi0xLjQ=",
+      previewImageBase64: "iVBORw0KGgo=",
       log: "compiled",
       diagnostics: [],
       extractedText: [
@@ -64,6 +65,7 @@ describe("EditorWorkspace", () => {
     expect(within(sourcePanel).getByText("0 diagnostics")).toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "Source review" })).toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "PDF preview" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Compiled PDF preview page" })).toBeInTheDocument();
     expect(await screen.findByText("PDF text matches editor")).toBeInTheDocument();
   });
 });

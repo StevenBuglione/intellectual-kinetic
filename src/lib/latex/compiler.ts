@@ -13,6 +13,7 @@ export type LatexCompileResult = {
   status: "compiled" | "failed";
   artifactName: string;
   pdfBase64?: string;
+  previewImageBase64?: string;
   extractedText?: string;
   log: string;
   diagnostics: LatexDiagnostic[];
@@ -31,6 +32,7 @@ export async function compileCanonicalDocumentToPdf(
     const compile = await runPdflatex(workingDirectory);
     const pdfPath = path.join(workingDirectory, "main.pdf");
     const pdf = await readFile(pdfPath);
+    const previewImage = await renderPdfPreviewImage(pdfPath, workingDirectory);
     const extractedText = await extractPdfText(pdfPath);
     await persistPreviewArtifact(artifactName, pdf);
 
@@ -38,6 +40,7 @@ export async function compileCanonicalDocumentToPdf(
       status: "compiled",
       artifactName,
       pdfBase64: pdf.toString("base64"),
+      previewImageBase64: previewImage.toString("base64"),
       extractedText,
       log: compile.stdout + compile.stderr,
       diagnostics: serialized.diagnostics,
@@ -81,6 +84,16 @@ async function extractPdfText(pdfPath: string): Promise<string> {
   });
 
   return result.stdout;
+}
+
+async function renderPdfPreviewImage(pdfPath: string, cwd: string): Promise<Buffer> {
+  const outputPrefix = path.join(cwd, "preview-page");
+  await execFileAsync("pdftoppm", ["-png", "-singlefile", "-r", "96", pdfPath, outputPrefix], {
+    timeout: 10_000,
+    maxBuffer: 1024 * 1024 * 4,
+  });
+
+  return readFile(`${outputPrefix}.png`);
 }
 
 async function persistPreviewArtifact(artifactName: string, pdf: Buffer) {

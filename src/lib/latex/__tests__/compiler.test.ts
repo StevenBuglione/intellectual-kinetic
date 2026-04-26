@@ -13,6 +13,7 @@ describe("LaTeX PDF compiler", () => {
 
     expect(result.status).toBe("compiled");
     expect(result.pdfBase64?.startsWith("JVBER")).toBe(true);
+    expect(result.previewImageBase64?.startsWith("iVBOR")).toBe(true);
     expect(result.artifactName).toBe("fixture-restoration-foundation-preview.pdf");
     expect(result.diagnostics).toEqual([]);
   }, 30_000);

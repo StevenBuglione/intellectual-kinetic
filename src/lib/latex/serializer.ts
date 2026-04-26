@@ -25,6 +25,16 @@ export function serializeCanonicalDocumentToLatex(
     `% Generated deterministically from canonical AST ${document.id}`,
     `\\documentclass{${document.settings.documentClass}}`,
     ...document.settings.modules.map((moduleName) => `\\usepackage{${moduleName}}`),
+    "\\usepackage[margin=1in]{geometry}",
+    "\\usepackage[scaled]{helvet}",
+    "\\usepackage{xcolor}",
+    "\\renewcommand{\\familydefault}{\\sfdefault}",
+    "\\setlength{\\parindent}{0pt}",
+    "\\setlength{\\parskip}{0.75em}",
+    "\\newcommand{\\IkHeadingOne}[1]{{\\fontsize{21pt}{26pt}\\selectfont\\bfseries #1}\\par\\vspace{0.35em}}",
+    "\\newcommand{\\IkHeadingTwo}[1]{{\\fontsize{17pt}{22pt}\\selectfont\\bfseries #1}\\par\\vspace{0.3em}}",
+    "\\newcommand{\\IkHeadingThree}[1]{{\\fontsize{14pt}{18pt}\\selectfont\\bfseries #1}\\par\\vspace{0.25em}}",
+    "\\newcommand{\\IkTheoremBlock}[1]{\\par\\vspace{0.6em}\\noindent\\hspace{0.25in}\\begin{minipage}{0.86\\linewidth}#1\\end{minipage}\\par\\vspace{0.6em}}",
     "\\makeatletter\\let\\ps@plain\\ps@empty\\makeatother",
     "\\pagestyle{empty}",
     "\\begin{document}",
@@ -47,7 +57,7 @@ function serializeBlock(
   diagnostics: LatexDiagnostic[],
 ): string[] {
   if (block.type === "heading") {
-    const command = block.level === 1 ? "chapter*" : block.level === 2 ? "section*" : "subsection*";
+    const command = block.level === 1 ? "IkHeadingOne" : block.level === 2 ? "IkHeadingTwo" : "IkHeadingThree";
     return [`\\${command}{${serializeInline(block.children, block, labels, diagnostics)}}`, ""];
   }
 
@@ -57,12 +67,7 @@ function serializeBlock(
 
   if (block.type === "theorem") {
     const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
-    return [
-      `\\begin{quote}${label}`,
-      serializeInline(block.children, block, labels, diagnostics),
-      "\\end{quote}",
-      "",
-    ];
+    return [`\\IkTheoremBlock{${label}${serializeInline(block.children, block, labels, diagnostics)}}`, ""];
   }
 
   const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
