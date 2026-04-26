@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { CanonicalDocument } from "@/lib/editor-core/types";
+import { pageLayoutContract } from "@/lib/layout/page-layout-contract";
 import type { LatexDiagnostic } from "./serializer";
 import { serializeCanonicalDocumentToLatex } from "./serializer";
 
@@ -15,6 +16,7 @@ export type LatexCompileResult = {
   pdfBase64?: string;
   previewImageBase64?: string;
   previewPageImageBase64?: string[];
+  pdfFonts?: string[];
   extractedText?: string;
   log: string;
   diagnostics: LatexDiagnostic[];
@@ -34,6 +36,7 @@ export async function compileCanonicalDocumentToPdf(
     const pdfPath = path.join(workingDirectory, "main.pdf");
     const pdf = await readFile(pdfPath);
     const previewImages = await renderPdfPreviewImages(pdfPath, workingDirectory);
+    const pdfFonts = await extractPdfFonts(pdfPath);
     const extractedText = await extractPdfText(pdfPath);
     await persistPreviewArtifact(artifactName, pdf);
 
@@ -43,6 +46,7 @@ export async function compileCanonicalDocumentToPdf(
       pdfBase64: pdf.toString("base64"),
       previewImageBase64: previewImages[0]?.toString("base64"),
       previewPageImageBase64: previewImages.map((previewImage) => previewImage.toString("base64")),
+      pdfFonts,
       extractedText,
       log: compile.stdout + compile.stderr,
       diagnostics: serialized.diagnostics,
@@ -67,6 +71,10 @@ export async function compileCanonicalDocumentToPdf(
   }
 }
 
+export function pdfSatisfiesFontContract(pdfFonts: string[]): boolean {
+  return pageLayoutContract.fonts.requiredPdfBodyFonts.every((requiredFont) => pdfFonts.includes(requiredFont));
+}
+
 async function runPdflatex(cwd: string) {
   return execFileAsync(
     "pdflatex",
@@ -86,6 +94,24 @@ async function extractPdfText(pdfPath: string): Promise<string> {
   });
 
   return result.stdout;
+}
+
+async function extractPdfFonts(pdfPath: string): Promise<string[]> {
+  const result = await execFileAsync("pdffonts", [pdfPath], {
+    timeout: 10_000,
+    maxBuffer: 1024 * 1024,
+  });
+
+  return [...new Set(result.stdout
+    .split("\n")
+    .slice(2)
+    .map((line) => normalizePdfFontName(line.trim().split(/\s+/)[0] ?? ""))
+    .filter(Boolean))]
+    .sort();
+}
+
+function normalizePdfFontName(fontName: string): string {
+  return fontName.replace(/^[A-Z]{6}\+/, "");
 }
 
 async function renderPdfPreviewImages(pdfPath: string, cwd: string): Promise<Buffer[]> {

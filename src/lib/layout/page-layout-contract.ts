@@ -22,6 +22,11 @@ export const pageLayoutContract = {
     headingThreeFontSizePx: 18,
     mathDisplayFontSizePx: 16,
   },
+  fonts: {
+    editorBodyFamily: "\"Nimbus Sans\", Arial, Helvetica, sans-serif",
+    latexBodyPackage: "helvet",
+    requiredPdfBodyFonts: ["NimbusSanL-Regu", "NimbusSanL-Bold"],
+  },
   spacing: {
     paragraphBottomPx: 11,
     headingBottomPx: 14,

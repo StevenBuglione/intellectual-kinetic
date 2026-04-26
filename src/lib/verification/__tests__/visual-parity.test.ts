@@ -23,6 +23,7 @@ describe("visual editor to PDF parity verification", () => {
           "editor-browser-render",
           "pdf-page-render",
           "editor-pdf-visual-diff",
+          "editor-pdf-rmse-diff",
         ]),
       );
       expect(fixture.metrics.differentPixels).toBeLessThanOrEqual(
@@ -30,6 +31,9 @@ describe("visual editor to PDF parity verification", () => {
       );
       expect(fixture.metrics.normalizedDifference).toBeLessThanOrEqual(
         fixture.thresholds.maxNormalizedDifference,
+      );
+      expect(fixture.metrics.rootMeanSquareDifference).toBeLessThanOrEqual(
+        fixture.thresholds.maxRootMeanSquareDifference,
       );
       expect(fixture.thresholds.targetDifferentPixels).toBe(0);
       expect(fixture.metrics.editorWidth).toBe(816);

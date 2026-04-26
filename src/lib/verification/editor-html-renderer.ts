@@ -1,7 +1,7 @@
 import type { CanonicalBlock, CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
 import { pageLayoutContract } from "@/lib/layout/page-layout-contract";
 
-const { page, typography, spacing, table, figure } = pageLayoutContract;
+const { page, typography, fonts, spacing, table, figure } = pageLayoutContract;
 
 export function renderCanonicalDocumentToEditorHtml(document: CanonicalDocument): string {
   return renderCanonicalDocumentPageToEditorHtml(document, document.blocks, 1);
@@ -37,7 +37,7 @@ function renderCanonicalDocumentPageToEditorHtml(
       }
       body {
         color: #202124;
-        font-family: Arial, Helvetica, sans-serif;
+        font-family: ${fonts.editorBodyFamily};
         font-size: ${typography.bodyFontSizePx}px;
         line-height: ${typography.bodyLineHeight};
       }
@@ -51,7 +51,7 @@ function renderCanonicalDocumentPageToEditorHtml(
         color: #202124;
         outline: none;
         box-shadow: none;
-        font-family: Arial, Helvetica, sans-serif;
+        font-family: ${fonts.editorBodyFamily};
         font-size: ${typography.bodyFontSizePx}px;
         line-height: ${typography.bodyLineHeight};
       }

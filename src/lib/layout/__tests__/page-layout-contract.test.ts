@@ -10,6 +10,11 @@ describe("shared page layout contract", () => {
     expect(pageLayoutContract.page.heightPx).toBe(1056);
     expect(pageLayoutContract.page.marginIn).toBe(1);
     expect(pageLayoutContract.typography.bodyFontSizePt).toBe(11);
+    expect(pageLayoutContract.fonts.editorBodyFamily).toBe("\"Nimbus Sans\", Arial, Helvetica, sans-serif");
+    expect(pageLayoutContract.fonts.requiredPdfBodyFonts).toEqual([
+      "NimbusSanL-Regu",
+      "NimbusSanL-Bold",
+    ]);
     expect(pageLayoutContract.targets.pixelPerfectDifferentPixels).toBe(0);
   });
 
@@ -20,6 +25,7 @@ describe("shared page layout contract", () => {
     expect(html).toContain(`height: ${pageLayoutContract.page.heightPx}px;`);
     expect(html).toContain(`padding: ${pageLayoutContract.page.marginPx}px ${pageLayoutContract.page.marginPx}px ${pageLayoutContract.page.bottomPaddingPx}px;`);
     expect(html).toContain(`font-size: ${pageLayoutContract.typography.bodyFontSizePx}px;`);
+    expect(html).toContain(`font-family: ${pageLayoutContract.fonts.editorBodyFamily};`);
   });
 
   it("drives the LaTeX render geometry", () => {

@@ -4,7 +4,7 @@ import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { validateCanonicalDocument } from "@/lib/editor-core/canonical-document";
 import { compareCanonicalDocumentToPdfText } from "@/lib/editor-core/plaintext";
-import { compileCanonicalDocumentToPdf } from "@/lib/latex/compiler";
+import { compileCanonicalDocumentToPdf, pdfSatisfiesFontContract } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
 import { canonicalToTiptapDocument } from "@/lib/tiptap-adapter/projection";
 
@@ -55,6 +55,12 @@ export async function runParityFixtureVerification(): Promise<FixtureVerificatio
       checks.push("pdf-compilation");
     } else {
       errors.push("PDF compilation failed.");
+    }
+
+    if (pdf.status === "compiled" && pdfSatisfiesFontContract(pdf.pdfFonts ?? [])) {
+      checks.push("pdf-font-contract");
+    } else {
+      errors.push(`PDF font contract failed. Fonts: ${(pdf.pdfFonts ?? []).join(", ") || "none"}.`);
     }
 
     const textParity = compareCanonicalDocumentToPdfText(fixture, pdf.extractedText);

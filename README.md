@@ -41,4 +41,4 @@ Compose starts:
 - `npm run verify:visual` - render TextView fixture pages in headless Chrome, render every compiled PDF page to PNG, and fail on editor/PDF visual drift above the ratcheted budget
 - `npm run verify:gates` - run semantic fixture gates and visual parity gates together
 
-`verify:visual` requires `pdflatex`, `pdftoppm`, ImageMagick `compare`/`identify`, and a Chrome-compatible browser. Set `IK_ARTIFACT_ROOT=.artifacts` to keep `editor.png`, `pdf.png`, and `diff.png` outputs for inspection. Fixture budgets live in code with a zero-difference target so parity improvements can ratchet the allowed drift downward.
+`verify:visual` requires `pdflatex`, `pdftoppm`, ImageMagick `compare`/`identify`, and a Chrome-compatible browser. Set `IK_ARTIFACT_ROOT=.artifacts` to keep `editor.png`, `pdf.png`, and `diff.png` outputs for inspection. Fixture budgets live in code with a zero-difference target so parity improvements can ratchet the allowed drift downward. The fixture gate also asserts the PDF body font contract with `pdffonts`, and the visual gate tracks both changed pixels and RMSE intensity drift.

@@ -13,16 +13,19 @@ const execFileAsync = promisify(execFile);
 const { page } = pageLayoutContract;
 const DEFAULT_MAX_DIFFERENT_PIXELS = Number(process.env.IK_VISUAL_MAX_DIFFERENT_PIXELS ?? 108_500);
 const DEFAULT_MAX_NORMALIZED_DIFFERENCE = Number(process.env.IK_VISUAL_MAX_NORMALIZED_DIFFERENCE ?? 0.126);
+const DEFAULT_MAX_ROOT_MEAN_SQUARE_DIFFERENCE = Number(process.env.IK_VISUAL_MAX_RMSE ?? 0.126);
 
 export type VisualParityThresholds = {
   maxDifferentPixels: number;
   maxNormalizedDifference: number;
+  maxRootMeanSquareDifference: number;
   targetDifferentPixels: number;
 };
 
 export type VisualParityMetrics = {
   differentPixels: number;
   normalizedDifference: number;
+  rootMeanSquareDifference: number;
   pixelPerfect: boolean;
   editorWidth: number;
   editorHeight: number;
@@ -36,6 +39,7 @@ export type VisualParityPageMetrics = {
   pageNumber: number;
   differentPixels: number;
   normalizedDifference: number;
+  rootMeanSquareDifference: number;
   pixelPerfect: boolean;
   editorWidth: number;
   editorHeight: number;
@@ -128,10 +132,12 @@ export async function runVisualParityFixture(
       }
 
       const pageDifferentPixels = await compareImages(editorImagePath, pdfImagePath, diffImagePath);
+      const rootMeanSquareDifference = await compareImageRootMeanSquare(editorImagePath, pdfImagePath);
       pageMetrics.push({
         pageNumber: pageIndex + 1,
         differentPixels: pageDifferentPixels,
         normalizedDifference: pageDifferentPixels / pagePixelCount,
+        rootMeanSquareDifference,
         pixelPerfect: pageDifferentPixels === thresholds.targetDifferentPixels,
         editorWidth: editorSize.width,
         editorHeight: editorSize.height,
@@ -142,9 +148,11 @@ export async function runVisualParityFixture(
 
     const differentPixels = pageMetrics.reduce((sum, pageMetric) => sum + pageMetric.differentPixels, 0);
     const normalizedDifference = differentPixels / Math.max(1, pageMetrics.length * pagePixelCount);
+    const rootMeanSquareDifference = Math.max(0, ...pageMetrics.map((pageMetric) => pageMetric.rootMeanSquareDifference));
     const metrics = {
       differentPixels,
       normalizedDifference,
+      rootMeanSquareDifference,
       pixelPerfect: differentPixels === thresholds.targetDifferentPixels,
       editorWidth: pageMetrics[0]?.editorWidth ?? 0,
       editorHeight: pageMetrics[0]?.editorHeight ?? 0,
@@ -155,6 +163,7 @@ export async function runVisualParityFixture(
     };
     checks.push("editor-pdf-visual-diff");
     checks.push("editor-pdf-page-sequence");
+    checks.push("editor-pdf-rmse-diff");
 
     if (differentPixels > thresholds.maxDifferentPixels) {
       errors.push(
@@ -165,6 +174,12 @@ export async function runVisualParityFixture(
     if (normalizedDifference > thresholds.maxNormalizedDifference) {
       errors.push(
         `Visual diff ratio exceeded threshold: ${normalizedDifference.toFixed(4)} > ${thresholds.maxNormalizedDifference}.`,
+      );
+    }
+
+    if (rootMeanSquareDifference > thresholds.maxRootMeanSquareDifference) {
+      errors.push(
+        `Visual RMSE exceeded threshold: ${rootMeanSquareDifference.toFixed(4)} > ${thresholds.maxRootMeanSquareDifference}.`,
       );
     }
 
@@ -268,6 +283,27 @@ async function compareImages(editorImagePath: string, pdfImagePath: string, diff
   }
 }
 
+async function compareImageRootMeanSquare(editorImagePath: string, pdfImagePath: string): Promise<number> {
+  try {
+    const result = await execFileAsync(
+      "compare",
+      ["-metric", "RMSE", editorImagePath, pdfImagePath, "null:"],
+      {
+        timeout: 20_000,
+        maxBuffer: 1024 * 1024 * 4,
+      },
+    );
+
+    return parseNormalizedRootMeanSquare(result.stderr);
+  } catch (error) {
+    if (isExecError(error)) {
+      return parseNormalizedRootMeanSquare(error.stderr);
+    }
+
+    throw error;
+  }
+}
+
 function parseChangedPixelCount(value: string): number {
   const match = value.match(/\d+/);
   if (!match) {
@@ -275,6 +311,15 @@ function parseChangedPixelCount(value: string): number {
   }
 
   return Number(match[0]);
+}
+
+function parseNormalizedRootMeanSquare(value: string): number {
+  const match = value.match(/\(([\d.]+)\)/);
+  if (!match) {
+    throw new Error(`Could not parse ImageMagick RMSE output: ${value}`);
+  }
+
+  return Number(match[1]);
 }
 
 async function persistVisualArtifacts(
@@ -318,6 +363,7 @@ function emptyReport(
     metrics: {
       differentPixels: Number.POSITIVE_INFINITY,
       normalizedDifference: Number.POSITIVE_INFINITY,
+      rootMeanSquareDifference: Number.POSITIVE_INFINITY,
       pixelPerfect: false,
       editorWidth: 0,
       editorHeight: 0,
@@ -339,6 +385,7 @@ function resolveVisualParityThresholds(
   return {
     maxDifferentPixels: overrides?.maxDifferentPixels ?? ratchet?.maxDifferentPixels ?? DEFAULT_MAX_DIFFERENT_PIXELS,
     maxNormalizedDifference: overrides?.maxNormalizedDifference ?? ratchet?.maxNormalizedDifference ?? DEFAULT_MAX_NORMALIZED_DIFFERENCE,
+    maxRootMeanSquareDifference: overrides?.maxRootMeanSquareDifference ?? ratchet?.maxRootMeanSquareDifference ?? DEFAULT_MAX_ROOT_MEAN_SQUARE_DIFFERENCE,
     targetDifferentPixels: overrides?.targetDifferentPixels ?? ratchet?.targetDifferentPixels ?? pageLayoutContract.targets.pixelPerfectDifferentPixels,
   };
 }

@@ -1,7 +1,7 @@
 import type { CanonicalBlock, CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
 import { pageLayoutContract } from "@/lib/layout/page-layout-contract";
 
-const { page, typography, table, figure } = pageLayoutContract;
+const { page, typography, fonts, table, figure } = pageLayoutContract;
 
 export type LatexDiagnostic = {
   severity: "warning" | "error";
@@ -29,7 +29,7 @@ export function serializeCanonicalDocumentToLatex(
     `\\documentclass{${document.settings.documentClass}}`,
     ...document.settings.modules.map((moduleName) => `\\usepackage{${moduleName}}`),
     `\\usepackage[margin=${page.marginIn}in]{geometry}`,
-    "\\usepackage[scaled]{helvet}",
+    `\\usepackage[scaled]{${fonts.latexBodyPackage}}`,
     "\\usepackage{xcolor}",
     "\\usepackage{array}",
     "\\usepackage{enumitem}",
