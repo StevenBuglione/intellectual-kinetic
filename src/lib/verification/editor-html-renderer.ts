@@ -18,6 +18,8 @@ function renderCanonicalDocumentPageToEditorHtml(
   blocks: CanonicalBlock[],
   pageNumber: number,
 ): string {
+  const strictLyxLayout = documentUsesStrictLyxLayout(document);
+
   return `<!doctype html>
 <html lang="${escapeHtmlAttribute(document.settings.language)}">
   <head>
@@ -54,6 +56,18 @@ function renderCanonicalDocumentPageToEditorHtml(
         font-family: ${fonts.editorBodyFamily};
         font-size: ${typography.bodyFontSizePx}px;
         line-height: ${typography.bodyLineHeight};
+      }
+      .ik-doc-editor-page.ik-doc-lyx-strict {
+        font-size: 13.25px;
+        line-height: 1.45;
+      }
+      .ik-doc-editor-page.ik-doc-lyx-strict h1 {
+        font-size: 29px;
+        line-height: 1.2;
+      }
+      .ik-doc-editor-page.ik-doc-lyx-strict p,
+      .ik-doc-editor-page.ik-doc-lyx-strict section {
+        line-height: 1.45;
       }
       .ik-doc-editor-page h1,
       .ik-doc-editor-page h2,
@@ -171,6 +185,10 @@ function renderCanonicalDocumentPageToEditorHtml(
       .ik-doc-generated-list {
         margin: 0 0 ${spacing.paragraphBottomPx}px;
       }
+      .ik-doc-front-matter {
+        line-height: 1.2;
+        margin-bottom: 7px;
+      }
       .ik-doc-front-matter strong,
       .ik-doc-branch strong,
       .ik-doc-generated-list strong {
@@ -188,11 +206,29 @@ function renderCanonicalDocumentPageToEditorHtml(
     </style>
   </head>
   <body>
-    <article class="ik-doc-editor-page" aria-label="Google Docs-style document page">
+    <article class="ik-doc-editor-page${strictLyxLayout ? " ik-doc-lyx-strict" : ""}" aria-label="Google Docs-style document page">
       ${blocks.map(renderBlock).join("\n")}
     </article>
   </body>
 </html>`;
+}
+
+function documentUsesStrictLyxLayout(document: CanonicalDocument): boolean {
+  return document.blocks.some((block) => {
+    if (block.type === "front_matter" || block.type === "generated_list" || block.type === "branch") {
+      return true;
+    }
+
+    if (block.type === "table" && (block.layout?.booktabs || block.layout?.tableKind === "longtable")) {
+      return true;
+    }
+
+    if (block.type === "figure" && block.asset?.kind === "embedded") {
+      return true;
+    }
+
+    return false;
+  });
 }
 
 function splitCanonicalDocumentPages(document: CanonicalDocument): CanonicalBlock[][] {
