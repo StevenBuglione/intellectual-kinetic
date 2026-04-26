@@ -149,10 +149,24 @@ async function main() {
       throw new Error(`Find next did not select matching editor text; selected ${JSON.stringify(selectedMatch)}.`);
     }
 
+    await findDialog.getByRole("textbox", { name: "Replace with" }).fill("movement");
+    await findDialog.getByRole("button", { name: /^Replace$/ }).click();
+    await page.getByText("1 replacement").waitFor({ state: "visible" });
+    const currentReplaceText = await page.locator(".ProseMirror").innerText();
+    if (!currentReplaceText.includes("A Treatise on movement")) {
+      throw new Error(`Replace did not update the selected match in the title:\n${currentReplaceText}`);
+    }
+    if (!currentReplaceText.includes("Uniform motion preserves proportional distance.")) {
+      throw new Error(`Replace changed more than the selected match:\n${currentReplaceText}`);
+    }
+    if (countOccurrences(currentReplaceText, "movement") !== 1) {
+      throw new Error(`Replace inserted too many replacement strings:\n${currentReplaceText}`);
+    }
+
     await findDialog.getByRole("searchbox", { name: "Find text" }).fill("Let v");
     await findDialog.getByRole("textbox", { name: "Replace with" }).fill("go");
     await findDialog.getByRole("button", { name: "Replace all" }).click();
-    await page.getByText("1 replacements").waitFor({ state: "visible" });
+    await page.getByText("1 replacement").waitFor({ state: "visible" });
     const replacedText = await page.locator(".ProseMirror").innerText();
 
     if (!replacedText.includes("go denote velocity and cite @newton1687.")) {

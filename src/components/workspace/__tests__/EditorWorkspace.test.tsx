@@ -114,7 +114,7 @@ describe("EditorWorkspace", () => {
     await userEvent.type(within(findDialog).getByRole("textbox", { name: "Replace with" }), "go");
     await userEvent.click(within(findDialog).getByRole("button", { name: "Replace all" }));
 
-    expect(await within(findDialog).findByText("1 replacements")).toBeInTheDocument();
+    expect(await within(findDialog).findByText("1 replacement")).toBeInTheDocument();
     expect(screen.getByLabelText("Google Docs-style document page")).toHaveTextContent(
       "go denote velocity and cite @newton1687.",
     );
@@ -133,6 +133,23 @@ describe("EditorWorkspace", () => {
     expect(await within(findDialog).findByText("1 of 2")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "A Treatise on Motion" })).toBeInTheDocument();
     expect(screen.getByText("Uniform motion preserves proportional distance.")).toBeInTheDocument();
+  });
+
+  it("replaces only the currently selected find match", async () => {
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Find and replace" }));
+    const findDialog = screen.getByRole("dialog", { name: "Find and replace" });
+    await userEvent.type(within(findDialog).getByRole("searchbox", { name: "Find text" }), "motion");
+    await userEvent.type(within(findDialog).getByRole("textbox", { name: "Replace with" }), "movement");
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Find next" }));
+
+    await userEvent.click(within(findDialog).getByRole("button", { name: /^Replace$/ }));
+
+    expect(await within(findDialog).findByText("1 replacement")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "A Treatise on movement" })).toBeInTheDocument();
+    expect(screen.getByText("Uniform motion preserves proportional distance.")).toBeInTheDocument();
+    expect(screen.queryByText("Uniform movement preserves proportional distance.")).not.toBeInTheDocument();
   });
 
   it("opens the find dialog from the standard keyboard shortcut", async () => {

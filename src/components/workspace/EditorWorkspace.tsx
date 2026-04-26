@@ -50,7 +50,6 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   calculateDocumentStatistics,
   pasteSpecialToCanonicalBlocks,
-  replaceAllInCanonicalDocument,
   type PasteSpecialFormat,
 } from "@/lib/editor-core/document-workflows";
 import { canonicalBlockListsEqual, mergeCanonicalPatchBlocks } from "@/lib/editor-core/patch-merge";
@@ -162,28 +161,35 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       },
     },
     onUpdate({ editor: activeEditor }) {
-      const patch = tiptapDocumentToCanonicalPatch(activeEditor.getJSON());
-      if (patch.blocks.length > 0) {
-        const currentDocument = documentRef.current;
-        const mergedBlocks = mergeCanonicalPatchBlocks(currentDocument.blocks, patch.blocks);
-
-        if (canonicalBlockListsEqual(currentDocument.blocks, mergedBlocks)) {
-          return;
-        }
-
-        const nextDocument = {
-          ...currentDocument,
-          blocks: mergedBlocks,
-          updatedAt: new Date().toISOString(),
-        };
-
-        documentRef.current = nextDocument;
-        setDocument(nextDocument);
-        setCompiledPreview(null);
-        setCompileState("idle");
-      }
+      syncDocumentFromEditor(activeEditor);
     },
   }, [editorMountKey]);
+
+  function syncDocumentFromEditor(activeEditor: Editor) {
+    const patch = tiptapDocumentToCanonicalPatch(activeEditor.getJSON());
+    if (patch.blocks.length === 0) {
+      return false;
+    }
+
+    const currentDocument = documentRef.current;
+    const mergedBlocks = mergeCanonicalPatchBlocks(currentDocument.blocks, patch.blocks);
+
+    if (canonicalBlockListsEqual(currentDocument.blocks, mergedBlocks)) {
+      return false;
+    }
+
+    const nextDocument = {
+      ...currentDocument,
+      blocks: mergedBlocks,
+      updatedAt: new Date().toISOString(),
+    };
+
+    documentRef.current = nextDocument;
+    setDocument(nextDocument);
+    setCompiledPreview(null);
+    setCompileState("idle");
+    return true;
+  }
 
   async function saveDocument() {
     setSaveState("saving");
@@ -241,16 +247,43 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   }
 
   function replaceAllMatches() {
-    const result = replaceAllInCanonicalDocument(documentRef.current, {
-      find: findText,
-      replaceWith: replaceText,
-      matchCase: false,
-    });
-
-    setReplacementCount(result.replacementCount);
-    if (result.replacementCount > 0) {
-      applyDocumentUpdate(result.document);
+    if (!editor || findText.length === 0) {
+      setReplacementCount(0);
+      setFindStatus({ activeIndex: 0, total: 0 });
+      return;
     }
+
+    const matches = findEditorTextMatches(editor, findText);
+    setReplacementCount(matches.length);
+    if (matches.length > 0) {
+      replaceEditorTextRanges(editor, matches, replaceText);
+      syncDocumentFromEditor(editor);
+      setFindCursor(-1);
+      setFindStatus(null);
+    }
+  }
+
+  function replaceCurrentMatch() {
+    if (!editor || findText.length === 0) {
+      setReplacementCount(0);
+      setFindStatus({ activeIndex: 0, total: 0 });
+      return;
+    }
+
+    const matches = findEditorTextMatches(editor, findText);
+    if (matches.length === 0) {
+      setReplacementCount(0);
+      setFindCursor(-1);
+      setFindStatus({ activeIndex: 0, total: 0 });
+      return;
+    }
+
+    const selectedMatch = currentSelectedFindMatch(editor, matches) ?? matches[findCursor] ?? matches[0];
+    replaceEditorTextRanges(editor, [selectedMatch], replaceText);
+    syncDocumentFromEditor(editor);
+    setReplacementCount(1);
+    setFindCursor(-1);
+    setFindStatus(null);
   }
 
   function insertPasteSpecial() {
@@ -647,13 +680,16 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
               <button className="ik-doc-panel-button" type="button" onClick={() => setWorkflowPanel(null)}>
                 Close
               </button>
+              <button className="ik-doc-panel-button" type="button" onClick={replaceCurrentMatch}>
+                Replace
+              </button>
               <button className="ik-doc-action-button" type="button" onClick={replaceAllMatches}>
                 Replace all
               </button>
             </div>
             {replacementCount !== null ? (
               <p className="ik-workflow-status" aria-live="polite">
-                {replacementCount} replacements
+                {replacementCount} {replacementCount === 1 ? "replacement" : "replacements"}
               </p>
             ) : null}
           </section>
@@ -812,6 +848,25 @@ function findEditorTextMatches(editor: Editor, query: string): EditorTextMatch[]
   });
 
   return matches;
+}
+
+function currentSelectedFindMatch(editor: Editor, matches: EditorTextMatch[]): EditorTextMatch | undefined {
+  const { from, to } = editor.state.selection;
+
+  return matches.find((match) => match.from === from && match.to === to);
+}
+
+function replaceEditorTextRanges(editor: Editor, matches: EditorTextMatch[], replaceWith: string) {
+  const sortedMatches = [...matches].sort((first, second) => second.from - first.from);
+  let transaction = editor.state.tr;
+
+  for (const match of sortedMatches) {
+    transaction = replaceWith.length > 0
+      ? transaction.replaceWith(match.from, match.to, editor.state.schema.text(replaceWith))
+      : transaction.delete(match.from, match.to);
+  }
+
+  editor.view.dispatch(transaction);
 }
 
 function textblockSearchCharacters(node: ProseMirrorNode, blockPosition: number): SearchCharacter[] {
