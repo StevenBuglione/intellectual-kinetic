@@ -38,6 +38,31 @@ describe("Tiptap projection boundary", () => {
     ]));
   });
 
+  it("preserves citation semantics after ProseMirror normalizes text-node attrs away", () => {
+    const patch = tiptapDocumentToCanonicalPatch({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          attrs: { canonicalId: "citation-paragraph", reviewState: "needs_review" },
+          content: [
+            { type: "text", text: "cite " },
+            { type: "text", text: "@newton1687", marks: [{ type: "code" }] },
+          ],
+        },
+      ],
+    });
+
+    expect(patch.blocks[0]).toMatchObject({
+      id: "citation-paragraph",
+      type: "paragraph",
+      children: [
+        { type: "text", text: "cite " },
+        { type: "citation", key: "newton1687" },
+      ],
+    });
+  });
+
   it("round trips Gate 1 list, table, figure, and page-break structures", () => {
     const projected = canonicalToTiptapDocument(gateOneStructureFixture);
     const patch = tiptapDocumentToCanonicalPatch(projected);

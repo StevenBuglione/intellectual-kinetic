@@ -602,6 +602,8 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
 
 function tiptapInlineToCanonical(nodes: TiptapNode[]): CanonicalInline[] {
   return nodes.map((node): CanonicalInline => {
+    const marks = canonicalTextMarks(node);
+
     if (node.type === "math_inline") {
       return { type: "math_inline", tex: String(node.attrs?.tex ?? "") };
     }
@@ -664,10 +666,36 @@ function tiptapInlineToCanonical(nodes: TiptapNode[]): CanonicalInline[] {
       };
     }
 
+    if (marks.includes("code") && node.text?.match(/^@[A-Za-z0-9:_-]+$/)) {
+      return {
+        type: "citation",
+        key: node.text.slice(1),
+      };
+    }
+
     return {
       type: "text",
       text: node.text ?? "",
+      ...(marks.length > 0 ? { marks } : {}),
     };
+  });
+}
+
+function canonicalTextMarks(node: TiptapNode): Array<"emphasis" | "strong" | "code"> {
+  return (node.marks ?? []).flatMap((mark) => {
+    if (mark.type === "bold" || mark.type === "strong") {
+      return ["strong" as const];
+    }
+
+    if (mark.type === "italic" || mark.type === "emphasis") {
+      return ["emphasis" as const];
+    }
+
+    if (mark.type === "code") {
+      return ["code" as const];
+    }
+
+    return [];
   });
 }
 

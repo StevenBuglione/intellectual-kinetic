@@ -477,12 +477,14 @@ button {
   border: 0;
   background: transparent;
   box-shadow: none;
-  color: rgba(32, 33, 36, 0.012);
+  color: transparent;
+  -webkit-text-fill-color: transparent;
   caret-color: #0b57d0;
 }
 
 .ik-tex-page-live-layer .ik-doc-editor-page ::selection {
   color: rgba(32, 33, 36, 0.78);
+  -webkit-text-fill-color: rgba(32, 33, 36, 0.78);
   background: rgba(26, 115, 232, 0.2);
 }
 

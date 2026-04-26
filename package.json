@@ -10,7 +10,8 @@
     "test": "vitest run",
     "verify:fixtures": "vitest run src/lib/verification/__tests__/fixture-runner.test.ts",
     "verify:visual": "vitest run src/lib/verification/__tests__/visual-parity.test.ts",
-    "verify:gates": "npm run verify:fixtures && npm run verify:visual",
+    "verify:editor-focus": "node scripts/verify-editor-focus-parity.mjs",
+    "verify:gates": "npm run verify:fixtures && npm run verify:visual && npm run verify:editor-focus",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -46,6 +47,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "jsdom": "^29.0.2",
+    "playwright": "^1.59.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.5"

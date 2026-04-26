@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
-import { mergeCanonicalPatchBlocks } from "../patch-merge";
+import { canonicalBlockListsEqual, mergeCanonicalPatchBlocks } from "../patch-merge";
 
 describe("canonical patch merge", () => {
   it("updates patched blocks while preserving complex blocks omitted by the UI adapter", () => {
@@ -26,5 +26,57 @@ describe("canonical patch merge", () => {
     });
     expect(merged.some((block) => block.id === "gate-three-page-break" && block.type === "page_break")).toBe(true);
     expect(merged.some((block) => block.id === "gate-three-table" && block.type === "table")).toBe(true);
+  });
+
+  it("identifies semantic no-op patches so focus-only editor transactions do not invalidate previews", () => {
+    const heading = gateThreeLayoutFixture.blocks[0];
+
+    if (heading?.type !== "heading") {
+      throw new Error("Unexpected fixture shape.");
+    }
+
+    const merged = mergeCanonicalPatchBlocks(gateThreeLayoutFixture.blocks, gateThreeLayoutFixture.blocks);
+    const changed = mergeCanonicalPatchBlocks(gateThreeLayoutFixture.blocks, [
+      {
+        ...heading,
+        children: [{ type: "text", text: "Layout Stress Coverage changed" }],
+      },
+    ]);
+
+    expect(canonicalBlockListsEqual(gateThreeLayoutFixture.blocks, merged)).toBe(true);
+    expect(canonicalBlockListsEqual(gateThreeLayoutFixture.blocks, changed)).toBe(false);
+  });
+
+  it("drops empty generated trailing paragraphs from focus-only Tiptap patches", () => {
+    const merged = mergeCanonicalPatchBlocks(gateThreeLayoutFixture.blocks, [
+      ...gateThreeLayoutFixture.blocks,
+      {
+        id: "generated-empty-trailing-paragraph",
+        type: "paragraph",
+        children: [],
+        reviewState: "needs_review",
+      },
+    ]);
+
+    expect(canonicalBlockListsEqual(gateThreeLayoutFixture.blocks, merged)).toBe(true);
+  });
+
+  it("compares canonical blocks by semantic structure instead of object key insertion order", () => {
+    const heading = gateThreeLayoutFixture.blocks[0];
+
+    if (heading?.type !== "heading") {
+      throw new Error("Unexpected fixture shape.");
+    }
+
+    expect(canonicalBlockListsEqual([heading], [
+      {
+        id: heading.id,
+        type: heading.type,
+        level: heading.level,
+        children: heading.children,
+        reviewState: heading.reviewState,
+        provenance: heading.provenance,
+      },
+    ])).toBe(true);
   });
 });

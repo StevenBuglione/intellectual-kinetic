@@ -1,6 +1,5 @@
 "use client";
 
-import { Node, mergeAttributes } from "@tiptap/core";
 import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Table } from "@tiptap/extension-table";
@@ -40,14 +39,15 @@ import {
   Undo2,
   Video,
 } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { mergeCanonicalPatchBlocks } from "@/lib/editor-core/patch-merge";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { canonicalBlockListsEqual, mergeCanonicalPatchBlocks } from "@/lib/editor-core/patch-merge";
 import { compareCanonicalDocumentToPdfText } from "@/lib/editor-core/plaintext";
 import type { CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
 import type { LatexCompileResult } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
 import { resolveEditorParitySurface } from "@/lib/layout/parity-surface";
 import { createTexPageBoxesFromPreview, type TexPageBox } from "@/lib/layout/tex-page-boxes";
+import { CanonicalDocumentAttributes, MathInline } from "@/lib/tiptap-adapter/extensions";
 import {
   canonicalToTiptapDocument,
   tiptapDocumentToCanonicalPatch,
@@ -57,28 +57,9 @@ type EditorWorkspaceProps = {
   initialDocument: CanonicalDocument;
 };
 
-const MathInline = Node.create({
-  name: "math_inline",
-  group: "inline",
-  inline: true,
-  atom: true,
-  addAttributes() {
-    return {
-      tex: { default: "" },
-      "data-canonical-kind": { default: "math_inline" },
-    };
-  },
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "span",
-      mergeAttributes(HTMLAttributes, { class: "ik-math-inline" }),
-      HTMLAttributes.tex,
-    ];
-  },
-});
-
 export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [document, setDocument] = useState(initialDocument);
+  const documentRef = useRef(document);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
@@ -107,10 +88,15 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     return () => window.clearTimeout(mountEditor);
   }, []);
 
+  useEffect(() => {
+    documentRef.current = document;
+  }, [document]);
+
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: true,
     extensions: [
+      CanonicalDocumentAttributes,
       StarterKit,
       MathInline,
       Highlight,
@@ -135,11 +121,21 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     onUpdate({ editor: activeEditor }) {
       const patch = tiptapDocumentToCanonicalPatch(activeEditor.getJSON());
       if (patch.blocks.length > 0) {
-        setDocument((current) => ({
-          ...current,
-          blocks: mergeCanonicalPatchBlocks(current.blocks, patch.blocks),
+        const currentDocument = documentRef.current;
+        const mergedBlocks = mergeCanonicalPatchBlocks(currentDocument.blocks, patch.blocks);
+
+        if (canonicalBlockListsEqual(currentDocument.blocks, mergedBlocks)) {
+          return;
+        }
+
+        const nextDocument = {
+          ...currentDocument,
+          blocks: mergedBlocks,
           updatedAt: new Date().toISOString(),
-        }));
+        };
+
+        documentRef.current = nextDocument;
+        setDocument(nextDocument);
         setCompiledPreview(null);
         setCompileState("idle");
       }
