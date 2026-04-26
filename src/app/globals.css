@@ -654,6 +654,28 @@ button {
   font-size: 13px;
 }
 
+.ik-find-options {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.ik-find-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #3c4043;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ik-find-options input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #1a73e8;
+}
+
 .ik-find-dialog-find-row {
   display: grid;
   grid-template-columns: auto auto minmax(54px, 1fr);

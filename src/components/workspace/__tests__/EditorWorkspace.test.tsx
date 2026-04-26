@@ -135,6 +135,31 @@ describe("EditorWorkspace", () => {
     expect(screen.getByText("Uniform motion preserves proportional distance.")).toBeInTheDocument();
   });
 
+  it("applies match-case and whole-word options to the visible find count", async () => {
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Find and replace" }));
+    const findDialog = screen.getByRole("dialog", { name: "Find and replace" });
+    const findInput = within(findDialog).getByRole("searchbox", { name: "Find text" });
+
+    await userEvent.type(findInput, "motion");
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Find next" }));
+    expect(await within(findDialog).findByText("1 of 2")).toBeInTheDocument();
+
+    await userEvent.click(within(findDialog).getByRole("checkbox", { name: "Match case" }));
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Find next" }));
+    expect(await within(findDialog).findByText("1 of 1")).toBeInTheDocument();
+
+    await userEvent.clear(findInput);
+    await userEvent.type(findInput, "v");
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Find next" }));
+    expect(await within(findDialog).findByText("1 of 4")).toBeInTheDocument();
+
+    await userEvent.click(within(findDialog).getByRole("checkbox", { name: "Whole word" }));
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Find next" }));
+    expect(await within(findDialog).findByText("1 of 1")).toBeInTheDocument();
+  });
+
   it("replaces only the currently selected find match", async () => {
     render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
 

@@ -149,6 +149,22 @@ async function main() {
       throw new Error(`Find next did not select matching editor text; selected ${JSON.stringify(selectedMatch)}.`);
     }
 
+    await findDialog.getByRole("checkbox", { name: "Match case" }).click();
+    await findDialog.getByRole("button", { name: "Find next" }).click();
+    await page.getByText("1 of 1").waitFor({ state: "visible" });
+    const selectedCaseSensitiveMatch = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+    if (selectedCaseSensitiveMatch !== "motion") {
+      throw new Error(`Match case did not select the lowercase visible match; selected ${JSON.stringify(selectedCaseSensitiveMatch)}.`);
+    }
+
+    await searchBox.fill("Motion");
+    await findDialog.getByRole("button", { name: "Find next" }).click();
+    await page.getByText("1 of 1").waitFor({ state: "visible" });
+    const selectedTitleMatch = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+    if (selectedTitleMatch !== "Motion") {
+      throw new Error(`Match case did not select the title match; selected ${JSON.stringify(selectedTitleMatch)}.`);
+    }
+
     await findDialog.getByRole("textbox", { name: "Replace with" }).fill("movement");
     await findDialog.getByRole("button", { name: /^Replace$/ }).click();
     await page.getByText("1 replacement").waitFor({ state: "visible" });
@@ -161,6 +177,17 @@ async function main() {
     }
     if (countOccurrences(currentReplaceText, "movement") !== 1) {
       throw new Error(`Replace inserted too many replacement strings:\n${currentReplaceText}`);
+    }
+
+    await searchBox.fill("v");
+    await findDialog.getByRole("button", { name: "Find next" }).click();
+    await page.getByText("1 of 5").waitFor({ state: "visible" });
+    await findDialog.getByRole("checkbox", { name: "Whole word" }).click();
+    await findDialog.getByRole("button", { name: "Find next" }).click();
+    await page.getByText("1 of 1").waitFor({ state: "visible" });
+    const selectedWholeWordMatch = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+    if (selectedWholeWordMatch !== "v") {
+      throw new Error(`Whole word did not isolate the standalone visible match; selected ${JSON.stringify(selectedWholeWordMatch)}.`);
     }
 
     await findDialog.getByRole("searchbox", { name: "Find text" }).fill("Let v");

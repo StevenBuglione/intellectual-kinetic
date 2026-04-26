@@ -78,6 +78,8 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [workflowPanel, setWorkflowPanel] = useState<"find" | "statistics" | "paste" | null>(null);
   const [findText, setFindText] = useState("");
   const [replaceText, setReplaceText] = useState("");
+  const [matchCase, setMatchCase] = useState(false);
+  const [wholeWord, setWholeWord] = useState(false);
   const [findStatus, setFindStatus] = useState<{ activeIndex: number; total: number } | null>(null);
   const [findCursor, setFindCursor] = useState(-1);
   const findInputRef = useRef<HTMLInputElement | null>(null);
@@ -226,7 +228,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       return;
     }
 
-    const matches = findEditorTextMatches(editor, findText);
+    const matches = findEditorTextMatches(editor, findText, { matchCase, wholeWord });
     if (matches.length === 0) {
       setFindCursor(-1);
       setFindStatus({ activeIndex: 0, total: 0 });
@@ -253,7 +255,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       return;
     }
 
-    const matches = findEditorTextMatches(editor, findText);
+    const matches = findEditorTextMatches(editor, findText, { matchCase, wholeWord });
     setReplacementCount(matches.length);
     if (matches.length > 0) {
       replaceEditorTextRanges(editor, matches, replaceText);
@@ -270,7 +272,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       return;
     }
 
-    const matches = findEditorTextMatches(editor, findText);
+    const matches = findEditorTextMatches(editor, findText, { matchCase, wholeWord });
     if (matches.length === 0) {
       setReplacementCount(0);
       setFindCursor(-1);
@@ -667,6 +669,34 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
                 </span>
               ) : null}
             </div>
+            <div className="ik-find-options">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={matchCase}
+                  onChange={(event) => {
+                    setMatchCase(event.target.checked);
+                    setFindCursor(-1);
+                    setFindStatus(null);
+                    setReplacementCount(null);
+                  }}
+                />
+                <span>Match case</span>
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={wholeWord}
+                  onChange={(event) => {
+                    setWholeWord(event.target.checked);
+                    setFindCursor(-1);
+                    setFindStatus(null);
+                    setReplacementCount(null);
+                  }}
+                />
+                <span>Whole word</span>
+              </label>
+            </div>
             <label>
               <span>Replace</span>
               <input
@@ -816,8 +846,13 @@ type SearchCharacter = {
   to: number;
 };
 
-function findEditorTextMatches(editor: Editor, query: string): EditorTextMatch[] {
-  const normalizedQuery = query.toLocaleLowerCase();
+type FindOptions = {
+  matchCase: boolean;
+  wholeWord: boolean;
+};
+
+function findEditorTextMatches(editor: Editor, query: string, options: FindOptions): EditorTextMatch[] {
+  const normalizedQuery = options.matchCase ? query : query.toLocaleLowerCase();
   if (normalizedQuery.length === 0) {
     return [];
   }
@@ -829,14 +864,20 @@ function findEditorTextMatches(editor: Editor, query: string): EditorTextMatch[]
     }
 
     const characters = textblockSearchCharacters(node, pos);
-    const haystack = characters.map((character) => character.value).join("").toLocaleLowerCase();
+    const visibleText = characters.map((character) => character.value).join("");
+    const haystack = options.matchCase ? visibleText : visibleText.toLocaleLowerCase();
     let searchFrom = 0;
     let index = haystack.indexOf(normalizedQuery, searchFrom);
     while (index >= 0) {
       const endIndex = index + normalizedQuery.length - 1;
       const from = characters[index]?.from;
       const to = characters[endIndex]?.to;
-      if (typeof from === "number" && typeof to === "number" && to > from) {
+      if (
+        typeof from === "number"
+        && typeof to === "number"
+        && to > from
+        && (!options.wholeWord || isWholeWordMatch(characters, index, endIndex))
+      ) {
         matches.push({ from, to });
       }
 
@@ -848,6 +889,17 @@ function findEditorTextMatches(editor: Editor, query: string): EditorTextMatch[]
   });
 
   return matches;
+}
+
+function isWholeWordMatch(characters: SearchCharacter[], startIndex: number, endIndex: number): boolean {
+  const previous = characters[startIndex - 1]?.value ?? "";
+  const next = characters[endIndex + 1]?.value ?? "";
+
+  return !isWordCharacter(previous) && !isWordCharacter(next);
+}
+
+function isWordCharacter(value: string): boolean {
+  return /^[\p{L}\p{N}_]$/u.test(value);
 }
 
 function currentSelectedFindMatch(editor: Editor, matches: EditorTextMatch[]): EditorTextMatch | undefined {
