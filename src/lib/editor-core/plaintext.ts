@@ -160,5 +160,9 @@ function canonicalInlineToEditorText(child: CanonicalInline): string {
     return `[comment: ${child.children.map(canonicalInlineToEditorText).join("")} - ${child.comment}]`;
   }
 
+  if (child.type === "tracked_insert" || child.type === "tracked_delete") {
+    return child.text;
+  }
+
   return `[[${child.target}]]`;
 }

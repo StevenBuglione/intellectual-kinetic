@@ -1,6 +1,7 @@
 import type { CanonicalBlock, CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
+import { getLyxDocumentClassEntry } from "@/lib/lyx/document-classes";
 import { documentUsesTexDerivedEditorSurface } from "@/lib/layout/parity-surface";
-import { pageLayoutContract } from "@/lib/layout/page-layout-contract";
+import { pageLayoutContract, resolvePageLayoutMetrics } from "@/lib/layout/page-layout-contract";
 
 const { page, typography, fonts, spacing, table, figure } = pageLayoutContract;
 
@@ -20,6 +21,9 @@ function renderCanonicalDocumentPageToEditorHtml(
   pageNumber: number,
 ): string {
   const strictLyxLayout = documentUsesTexDerivedEditorSurface(document);
+  const layout = resolvePageLayoutMetrics(document.settings.pageLayout);
+  const documentClass = getLyxDocumentClassEntry(document.settings.documentClass);
+  const documentClassBehavior = documentClass?.behavior ?? "article";
 
   return `<!doctype html>
 <html lang="${escapeHtmlAttribute(document.settings.language)}">
@@ -48,7 +52,7 @@ function renderCanonicalDocumentPageToEditorHtml(
         width: ${page.widthPx}px;
         min-height: ${page.heightPx}px;
         margin: 0;
-        padding: ${page.marginPx}px ${page.marginPx}px ${page.bottomPaddingPx}px;
+        padding: ${layout.topMarginPx}px ${layout.rightMarginPx}px ${layout.bottomPaddingPx}px ${layout.leftMarginPx}px;
         border: 0;
         background: #ffffff;
         color: #202124;
@@ -65,6 +69,62 @@ function renderCanonicalDocumentPageToEditorHtml(
       .ik-doc-editor-page.ik-doc-lyx-strict h1 {
         font-size: 29px;
         line-height: 1.2;
+      }
+      .ik-doc-editor-page.ik-doc-class-letter,
+      .ik-doc-editor-page.ik-doc-behavior-letter {
+        padding-top: ${Math.max(72, layout.topMarginPx - 16)}px;
+      }
+      .ik-doc-editor-page.ik-doc-class-report h1,
+      .ik-doc-editor-page.ik-doc-behavior-report h1 {
+        font-size: ${typography.headingOneFontSizePx + 4}px;
+      }
+      .ik-doc-editor-page.ik-doc-class-curriculum-vitae,
+      .ik-doc-editor-page.ik-doc-behavior-curriculum-vitae {
+        padding-top: ${Math.max(64, layout.topMarginPx - 24)}px;
+      }
+      .ik-doc-editor-page.ik-doc-class-curriculum-vitae h1,
+      .ik-doc-editor-page.ik-doc-behavior-curriculum-vitae h1 {
+        font-size: ${typography.headingOneFontSizePx - 1}px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .ik-doc-editor-page.ik-doc-class-poster,
+      .ik-doc-editor-page.ik-doc-behavior-poster {
+        background: linear-gradient(180deg, #ffffff 0%, #f6f9fe 100%);
+      }
+      .ik-doc-editor-page.ik-doc-class-poster h1,
+      .ik-doc-editor-page.ik-doc-class-poster p,
+      .ik-doc-editor-page.ik-doc-class-poster blockquote,
+      .ik-doc-editor-page.ik-doc-class-poster pre,
+      .ik-doc-editor-page.ik-doc-behavior-poster h1,
+      .ik-doc-editor-page.ik-doc-behavior-poster p,
+      .ik-doc-editor-page.ik-doc-behavior-poster blockquote,
+      .ik-doc-editor-page.ik-doc-behavior-poster pre {
+        text-align: center;
+      }
+      .ik-doc-editor-page.ik-doc-class-poster h1,
+      .ik-doc-editor-page.ik-doc-behavior-poster h1 {
+        font-size: ${typography.headingOneFontSizePx + 10}px;
+      }
+      .ik-doc-editor-page.ik-doc-class-letter {
+        padding-top: ${Math.max(72, layout.topMarginPx - 16)}px;
+      }
+      .ik-doc-editor-page.ik-doc-class-beamer,
+      .ik-doc-editor-page.ik-doc-behavior-beamer {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafd 100%);
+      }
+      .ik-doc-editor-page.ik-doc-class-beamer h1,
+      .ik-doc-editor-page.ik-doc-behavior-beamer h1 {
+        font-size: ${typography.headingOneFontSizePx + 6}px;
+        text-align: center;
+      }
+      .ik-doc-editor-page.ik-doc-class-beamer p,
+      .ik-doc-editor-page.ik-doc-class-beamer blockquote,
+      .ik-doc-editor-page.ik-doc-class-beamer pre,
+      .ik-doc-editor-page.ik-doc-behavior-beamer p,
+      .ik-doc-editor-page.ik-doc-behavior-beamer blockquote,
+      .ik-doc-editor-page.ik-doc-behavior-beamer pre {
+        text-align: center;
       }
       .ik-doc-editor-page.ik-doc-lyx-strict p,
       .ik-doc-editor-page.ik-doc-lyx-strict section {
@@ -165,6 +225,21 @@ function renderCanonicalDocumentPageToEditorHtml(
         font-family: "Courier New", Courier, monospace;
         font-size: 0.95em;
       }
+      .ik-tracked-insert,
+      .ik-tracked-delete {
+        font-size: 0.98em;
+      }
+      .ik-tracked-insert {
+        color: #188038;
+        text-decoration: underline;
+        text-decoration-thickness: 2px;
+        text-underline-offset: 2px;
+      }
+      .ik-tracked-delete {
+        color: #4dabf7;
+        text-decoration: line-through;
+        text-decoration-thickness: 2px;
+      }
       .ik-doc-abstract-label,
       .ik-doc-bibliography-label {
         display: block;
@@ -207,7 +282,7 @@ function renderCanonicalDocumentPageToEditorHtml(
     </style>
   </head>
   <body>
-    <article class="ik-doc-editor-page${strictLyxLayout ? " ik-doc-lyx-strict" : ""}" aria-label="Google Docs-style document page">
+    <article class="ik-doc-editor-page ik-doc-class-${escapeHtmlAttribute(document.settings.documentClass)} ik-doc-behavior-${escapeHtmlAttribute(documentClassBehavior)}${strictLyxLayout ? " ik-doc-lyx-strict" : ""}" aria-label="Google Docs-style document page" data-document-class="${escapeHtmlAttribute(document.settings.documentClass)}" data-document-behavior="${escapeHtmlAttribute(documentClassBehavior)}">
       ${blocks.map(renderBlock).join("\n")}
     </article>
   </body>
@@ -374,7 +449,15 @@ function renderInline(children: CanonicalInline[]): string {
       return `<span lang="${escapeHtmlAttribute(child.language)}">${renderInline(child.children)}</span>`;
     }
 
-    return `<code class="ik-code-inline ik-comment-inline">[comment: ${renderInline(child.children)} - ${escapeHtml(child.comment)}]</code>`;
+    if (child.type === "comment") {
+      return `<code class="ik-code-inline ik-comment-inline">[comment: ${renderInline(child.children)} - ${escapeHtml(child.comment)}]</code>`;
+    }
+
+    if (child.type === "tracked_insert" || child.type === "tracked_delete") {
+      return `<span class="${child.type === "tracked_insert" ? "ik-tracked-insert" : "ik-tracked-delete"}" data-change-id="${escapeHtmlAttribute(child.id)}" data-change-author="${escapeHtmlAttribute(child.authorName)}">${escapeHtml(child.text)}</span>`;
+    }
+
+    return "";
   }).join("");
 }
 

@@ -1,11 +1,25 @@
+import type { CanonicalPageLayoutSettings } from "@/lib/editor-core/types";
+
+const PX_PER_IN = 96;
+
 export const pageLayoutContract = {
   page: {
     widthPx: 816,
     heightPx: 1056,
     marginIn: 1,
     marginPx: 96,
+    topMarginPx: 96,
+    leftMarginPx: 96,
+    rightMarginPx: 96,
     bottomPaddingPx: 110,
     pdfRenderDpi: 96,
+  },
+  ruler: {
+    minTopMarginPx: 0,
+    minLeftMarginPx: 0,
+    minRightMarginPx: 0,
+    minContentWidthPx: 24,
+    minContentHeightPx: 24,
   },
   typography: {
     bodyFontSizePt: 11,
@@ -58,3 +72,85 @@ export const pageLayoutContract = {
 } as const;
 
 export const pagePixelCount = pageLayoutContract.page.widthPx * pageLayoutContract.page.heightPx;
+
+export type ResolvedPageLayoutMetrics = {
+  widthPx: number;
+  heightPx: number;
+  topMarginPx: number;
+  leftMarginPx: number;
+  rightMarginPx: number;
+  bottomPaddingPx: number;
+  contentWidthPx: number;
+  contentHeightPx: number;
+};
+
+export function resolvePageLayoutMetrics(pageLayout?: CanonicalPageLayoutSettings): ResolvedPageLayoutMetrics {
+  const { page, ruler } = pageLayoutContract;
+  const maxHorizontalMarginPx = page.widthPx - ruler.minContentWidthPx;
+  const maxTopMarginPx = page.heightPx - page.bottomPaddingPx - ruler.minContentHeightPx;
+  let leftMarginPx = clamp(
+    pageLayout?.leftMarginPx ?? page.leftMarginPx,
+    ruler.minLeftMarginPx,
+    maxHorizontalMarginPx,
+  );
+  let rightMarginPx = clamp(
+    pageLayout?.rightMarginPx ?? page.rightMarginPx,
+    ruler.minRightMarginPx,
+    maxHorizontalMarginPx,
+  );
+  const topMarginPx = clamp(
+    pageLayout?.topMarginPx ?? page.topMarginPx,
+    ruler.minTopMarginPx,
+    maxTopMarginPx,
+  );
+
+  if (leftMarginPx + rightMarginPx > page.widthPx - ruler.minContentWidthPx) {
+    const overflow = leftMarginPx + rightMarginPx - (page.widthPx - ruler.minContentWidthPx);
+    if (rightMarginPx >= leftMarginPx) {
+      rightMarginPx = Math.max(ruler.minRightMarginPx, rightMarginPx - overflow);
+    } else {
+      leftMarginPx = Math.max(ruler.minLeftMarginPx, leftMarginPx - overflow);
+    }
+  }
+
+  return {
+    widthPx: page.widthPx,
+    heightPx: page.heightPx,
+    topMarginPx,
+    leftMarginPx,
+    rightMarginPx,
+    bottomPaddingPx: page.bottomPaddingPx,
+    contentWidthPx: page.widthPx - leftMarginPx - rightMarginPx,
+    contentHeightPx: page.heightPx - topMarginPx - page.bottomPaddingPx,
+  };
+}
+
+export function buildLatexGeometryOptions(pageLayout?: CanonicalPageLayoutSettings): string {
+  const { page } = pageLayoutContract;
+  const resolvedLayout = resolvePageLayoutMetrics(pageLayout);
+  const usesDefaultMargins = resolvedLayout.topMarginPx === page.topMarginPx
+    && resolvedLayout.leftMarginPx === page.leftMarginPx
+    && resolvedLayout.rightMarginPx === page.rightMarginPx;
+
+  if (usesDefaultMargins) {
+    return `margin=${page.marginIn}in`;
+  }
+
+  return [
+    `top=${formatInches(resolvedLayout.topMarginPx)}in`,
+    `right=${formatInches(resolvedLayout.rightMarginPx)}in`,
+    `bottom=${page.marginIn}in`,
+    `left=${formatInches(resolvedLayout.leftMarginPx)}in`,
+  ].join(",");
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(Math.max(value, minimum), maximum);
+}
+
+function formatInches(pixelValue: number): string {
+  const inchValue = pixelValue / PX_PER_IN;
+  return Number.isInteger(inchValue)
+    ? String(inchValue)
+    : inchValue.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}

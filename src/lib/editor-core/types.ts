@@ -1,12 +1,20 @@
+import type { LyxTemplateFamily } from "@/lib/lyx/document-classes";
+
 export type ReviewState = "needs_review" | "approved" | "rejected";
 
+export type CanonicalPageLayoutSettings = {
+  topMarginPx?: number;
+  leftMarginPx?: number;
+  rightMarginPx?: number;
+};
+
 export type CanonicalDocumentSettings = {
-  documentClass: "book" | "article" | "report";
+  documentClass: string;
   language: string;
   encoding: "utf8";
   modules: string[];
   template: string;
-  templateFamily?: "Articles" | "Books" | "Letters" | "Presentations" | "Custom";
+  templateFamily?: LyxTemplateFamily;
   enabledModules?: string[];
   bibliographyEngine?: "basic" | "natbib" | "biblatex";
   citationStyle?: "numeric" | "authoryear";
@@ -14,6 +22,7 @@ export type CanonicalDocumentSettings = {
   languagePackage?: "babel" | "polyglossia";
   secondaryLanguages?: string[];
   textDirection?: "ltr" | "rtl";
+  pageLayout?: CanonicalPageLayoutSettings;
   branches?: Array<{
     id: string;
     name: string;
@@ -32,6 +41,17 @@ export type CanonicalMetadata = {
   sourceDocumentId: string;
   reviewState: ReviewState;
   workspace?: CanonicalWorkspaceMetadata;
+  changeTracking?: ChangeTrackingMetadata;
+};
+
+export type ChangeTrackingAuthor = {
+  id: string;
+  name: string;
+};
+
+export type ChangeTrackingMetadata = {
+  currentAuthorId: string;
+  authors: ChangeTrackingAuthor[];
 };
 
 export type Provenance = {
@@ -105,6 +125,24 @@ export type CommentInline = {
   comment: string;
 };
 
+export type TrackedInsertInline = {
+  type: "tracked_insert";
+  id: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  text: string;
+};
+
+export type TrackedDeleteInline = {
+  type: "tracked_delete";
+  id: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  text: string;
+};
+
 export type CanonicalInline =
   | TextInline
   | MathInline
@@ -116,7 +154,9 @@ export type CanonicalInline =
   | NomenclatureEntryInline
   | FootnoteInline
   | LanguageSpanInline
-  | CommentInline;
+  | CommentInline
+  | TrackedInsertInline
+  | TrackedDeleteInline;
 
 export type ParagraphBlock = {
   id: string;

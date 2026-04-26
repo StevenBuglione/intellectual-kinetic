@@ -1,7 +1,8 @@
 import type { CanonicalBlock, CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
-import { pageLayoutContract } from "@/lib/layout/page-layout-contract";
+import { getLyxDocumentClassEntry } from "@/lib/lyx/document-classes";
+import { buildLatexGeometryOptions, pageLayoutContract } from "@/lib/layout/page-layout-contract";
 
-const { page, typography, fonts, table, figure } = pageLayoutContract;
+const { typography, fonts, table, figure } = pageLayoutContract;
 
 export type LatexDiagnostic = {
   severity: "warning" | "error";
@@ -21,14 +22,31 @@ export function serializeCanonicalDocumentToLatex(
 ): LatexSerializationResult {
   const diagnostics: LatexDiagnostic[] = [];
   const labels = collectLabels(document.blocks);
+  const documentClass = getLyxDocumentClassEntry(document.settings.documentClass);
+  const latexDocumentClass = documentClass?.latexClass ?? document.settings.documentClass;
+  const beamerDocument = documentClass?.behavior === "beamer";
+  const docbookDocument = documentClass?.behavior === "docbook";
+  const requiredPackages = collectDocumentClassPackages(documentClass);
+
+  if (docbookDocument) {
+    diagnostics.push({
+      severity: "warning",
+      code: "docbook-preview-latex-compatibility",
+      message: "LyX DocBook/XML classes are XML-first and may not compile in the PDF preview pipeline.",
+    });
+  }
 
   const lines = [
     `% Generated deterministically from canonical AST ${document.id}`,
-    `\\documentclass{${document.settings.documentClass}}`,
-    ...document.settings.modules.map((moduleName) => `\\usepackage{${moduleName}}`),
-    `\\usepackage[margin=${page.marginIn}in]{geometry}`,
+    `\\documentclass{${latexDocumentClass}}`,
+    ...requiredPackages.map((packageName) => `\\usepackage{${packageName}}`),
+    ...document.settings.modules
+      .filter((moduleName) => !requiredPackages.includes(moduleName))
+      .map((moduleName) => `\\usepackage{${moduleName}}`),
+    ...(beamerDocument ? [] : [`\\usepackage[${buildLatexGeometryOptions(document.settings.pageLayout)}]{geometry}`]),
     `\\usepackage[scaled]{${fonts.latexBodyPackage}}`,
     "\\usepackage{xcolor}",
+    "\\usepackage[normalem]{ulem}",
     "\\usepackage{array}",
     "\\usepackage{enumitem}",
     ...(document.settings.customPreamble ?? []).filter((entry) => entry.enabled).flatMap((entry) => [
@@ -42,14 +60,22 @@ export function serializeCanonicalDocumentToLatex(
     ...(document.settings.secondaryLanguages?.length ? [`% IK secondary languages: ${document.settings.secondaryLanguages.join(", ")}`] : []),
     ...(document.settings.textDirection ? [`% IK text direction: ${document.settings.textDirection}`] : []),
     ...(document.settings.branches ?? []).map((branch) => `% IK branch: ${branch.id} ${branch.name} ${branch.exportMode}`),
-    "\\renewcommand{\\familydefault}{\\sfdefault}",
-    "\\setlength{\\parindent}{0pt}",
-    "\\setlength{\\parskip}{0.75em}",
+    ...(beamerDocument ? [
+      "\\setbeamertemplate{navigation symbols}{}",
+      "\\usetheme{Madrid}",
+      `\\title{${escapeLatex(document.title)}}`,
+    ] : [
+      "\\renewcommand{\\familydefault}{\\sfdefault}",
+      "\\setlength{\\parindent}{0pt}",
+      "\\setlength{\\parskip}{0.75em}",
+    ]),
     `\\newcommand{\\IkHeadingOne}[1]{{\\fontsize{${typography.headingOneFontSizePt}pt}{${typography.headingOneLineHeightPt}pt}\\selectfont\\bfseries #1}\\par\\vspace{0.35em}}`,
     `\\newcommand{\\IkHeadingTwo}[1]{{\\fontsize{${typography.headingTwoFontSizePt}pt}{${typography.headingTwoLineHeightPt}pt}\\selectfont\\bfseries #1}\\par\\vspace{0.3em}}`,
     `\\newcommand{\\IkHeadingThree}[1]{{\\fontsize{${typography.headingThreeFontSizePt}pt}{${typography.headingThreeLineHeightPt}pt}\\selectfont\\bfseries #1}\\par\\vspace{0.25em}}`,
     "\\newcommand{\\IkTheoremBlock}[1]{\\par\\vspace{0.6em}\\noindent\\hspace{0.25in}\\begin{minipage}{0.86\\linewidth}#1\\end{minipage}\\par\\vspace{0.6em}}",
     "\\newcommand{\\IkComment}[4]{\\texttt{[comment: #3 - #4]}}",
+    "\\newcommand{\\IkTrackedInsert}[2]{{\\color{green!45!black}\\uline{#2}}\\textsuperscript{\\textsf{[#1]}}}",
+    "\\newcommand{\\IkTrackedDelete}[2]{{\\color{cyan!60!blue}\\sout{#2}}\\textsuperscript{\\textsf{[#1]}}}",
     "\\newcommand{\\IkPlacedFootnote}[1]{\\texttt{(note: #1)}}",
     "\\newcommand{\\IkLabel}[1]{\\label{#1}}",
     "\\newcommand{\\IkCitationVariant}[2]{\\texttt{@#2}}",
@@ -68,12 +94,14 @@ export function serializeCanonicalDocumentToLatex(
     `\\newcommand{\\IkTableCell}[2]{\\fbox{\\begin{minipage}[t][${table.cellHeightIn}in][c]{#1}#2\\end{minipage}}}`,
     `\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][${figure.placeholderHeightIn}in][c]{${figure.placeholderWidthRatio}\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}`,
     "\\newcommand{\\IkAssetFigurePlaceholder}[4]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][#2][c]{#1}\\centering #3\\end{minipage}}\\\\[0.35em]#4\\end{center}\\vspace{0.4em}}",
-    "\\makeatletter\\let\\ps@plain\\ps@empty\\makeatother",
-    "\\pagestyle{empty}",
+    ...(beamerDocument ? [] : [
+      "\\makeatletter\\let\\ps@plain\\ps@empty\\makeatother",
+      "\\pagestyle{empty}",
+    ]),
     "\\begin{document}",
-    "\\thispagestyle{empty}",
+    ...(beamerDocument ? [] : ["\\thispagestyle{empty}"]),
     "",
-    ...document.blocks.flatMap((block) => serializeBlock(block, labels, diagnostics)),
+    ...serializeDocumentBody(document, labels, diagnostics, beamerDocument),
     "\\end{document}",
     "",
   ];
@@ -82,6 +110,29 @@ export function serializeCanonicalDocumentToLatex(
     source: lines.join("\n"),
     diagnostics,
   };
+}
+
+function serializeDocumentBody(
+  document: CanonicalDocument,
+  labels: Set<string>,
+  diagnostics: LatexDiagnostic[],
+  beamerDocument: boolean,
+): string[] {
+  if (!beamerDocument) {
+    return document.blocks.flatMap((block) => serializeBlock(block, labels, diagnostics));
+  }
+
+  return [
+    "\\begin{frame}",
+    "\\titlepage",
+    "\\end{frame}",
+    "",
+    `\\begin{frame}[fragile,allowframebreaks]{${escapeLatex(document.title)}}`,
+    "\\centering",
+    ...document.blocks.flatMap((block) => serializeBlock(block, labels, diagnostics)),
+    "\\end{frame}",
+    "",
+  ];
 }
 
 function serializeBlock(
@@ -273,6 +324,16 @@ function collectInlineLabels(children: CanonicalInline[]): string[] {
   });
 }
 
+function collectDocumentClassPackages(documentClass: ReturnType<typeof getLyxDocumentClassEntry>): string[] {
+  if (!documentClass) {
+    return [];
+  }
+
+  return [...new Set(documentClass.dependencies
+    .map((dependency) => dependency.replace(/\.sty$/u, ""))
+    .filter(Boolean))];
+}
+
 function serializeInline(
   children: CanonicalInline[],
   block: CanonicalBlock,
@@ -327,6 +388,14 @@ function serializeInline(
 
       if (child.type === "comment") {
         return `\\IkComment{${escapeLatex(child.author)}}{${escapeLatex(child.status)}}{${serializeInline(child.children, block, labels, diagnostics)}}{${escapeLatex(child.comment)}}`;
+      }
+
+      if (child.type === "tracked_insert") {
+        return `\\IkTrackedInsert{${escapeLatex(child.authorName)}}{${escapeLatex(child.text)}}`;
+      }
+
+      if (child.type === "tracked_delete") {
+        return `\\IkTrackedDelete{${escapeLatex(child.authorName)}}{${escapeLatex(child.text)}}`;
       }
 
       if (!labels.has(child.target)) {

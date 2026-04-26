@@ -212,6 +212,7 @@ export const lyxOracleFixtures: LyxOracleFixture[] = [
       "\\IKAffiliation{Oracle institute}",
     ],
     featureIds: [
+      "docclass-select",
       "module-enable-disable",
       "custom-preamble-edit",
       "abstract-block",

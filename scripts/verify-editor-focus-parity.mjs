@@ -132,6 +132,26 @@ function signalServer(server, signal) {
 
 async function changedPixelCount(beforePath, afterPath) {
   try {
+    const { stdout } = await execFileAsync("python3", [
+      "-c",
+      [
+        "from PIL import Image, ImageChops",
+        "import sys",
+        "before = Image.open(sys.argv[1]).convert('RGBA')",
+        "after = Image.open(sys.argv[2]).convert('RGBA')",
+        "diff = ImageChops.difference(before, after)",
+        "count = sum(1 for pixel in diff.getdata() if pixel != (0, 0, 0, 0))",
+        "print(count)",
+      ].join("; "),
+      beforePath,
+      afterPath,
+    ]);
+    return Number(stdout.trim() || "0");
+  } catch {
+    // Fall back to ImageMagick when Python/Pillow is unavailable.
+  }
+
+  try {
     const { stderr } = await execFileAsync("compare", ["-metric", "AE", beforePath, afterPath, "null:"]);
     return Number(stderr.trim() || "0");
   } catch (error) {

@@ -81,3 +81,40 @@ export const MathInline = Node.create({
     ];
   },
 });
+
+function createTrackedChangeNode(name: "tracked_insert" | "tracked_delete", className: string) {
+  return Node.create({
+    name,
+    group: "inline",
+    inline: true,
+    atom: true,
+    selectable: true,
+    addAttributes() {
+      return {
+        changeId: { default: "" },
+        authorId: { default: "" },
+        authorName: { default: "Editor" },
+        createdAt: { default: "" },
+        text: { default: "" },
+      };
+    },
+    renderHTML({ HTMLAttributes }) {
+      return [
+        "span",
+        mergeAttributes(HTMLAttributes, {
+          class: className,
+          "data-change-id": HTMLAttributes.changeId,
+          "data-change-author": HTMLAttributes.authorName,
+          "data-change-kind": name === "tracked_insert" ? "insert" : "delete",
+        }),
+        HTMLAttributes.text,
+      ];
+    },
+    renderText({ node }) {
+      return String(node.attrs.text ?? "");
+    },
+  });
+}
+
+export const TrackedInsert = createTrackedChangeNode("tracked_insert", "ik-tracked-insert");
+export const TrackedDelete = createTrackedChangeNode("tracked_delete", "ik-tracked-delete");

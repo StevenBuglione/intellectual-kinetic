@@ -70,6 +70,7 @@ const VERIFICATION_FIXTURE_IDS = new Set([
   "src/lib/editor-core/__tests__/canonical-document.test.ts",
   "src/lib/editor-core/__tests__/document-workflows.test.ts",
   "src/lib/editor-core/__tests__/patch-merge.test.ts",
+  "src/lib/editor-core/__tests__/spellcheck.test.ts",
   "src/lib/layout/__tests__/page-layout-contract.test.ts",
   "src/lib/layout/__tests__/parity-surface.test.ts",
   "src/lib/latex/__tests__/compiler.test.ts",
@@ -82,6 +83,8 @@ const VERIFICATION_FIXTURE_IDS = new Set([
   "src/lib/verification/__tests__/lyx-oracle.test.ts",
   "src/lib/verification/__tests__/visual-parity.test.ts",
   "src/lib/verification/editor-html-renderer.ts",
+  "scripts/verify-editor-focus-parity.mjs",
+  "scripts/verify-editor-workflows.mjs",
 ]);
 
 const coreDocumentFixtures = [
@@ -95,6 +98,10 @@ const serializerTests = ["src/lib/latex/__tests__/serializer.test.ts"];
 const compilerTests = ["src/lib/latex/__tests__/compiler.test.ts"];
 const workspaceTests = ["src/components/workspace/__tests__/EditorWorkspace.test.tsx"];
 const visualTests = ["src/lib/verification/__tests__/visual-parity.test.ts"];
+const browserWorkflowVerification = [
+  "scripts/verify-editor-focus-parity.mjs",
+  "scripts/verify-editor-workflows.mjs",
+];
 
 const supportedAll: LyxCoverageImplementation = {
   canonicalAst: "supported",
@@ -163,15 +170,23 @@ function productFixtureCoverage(capabilityId: string, fixtures: string[], oracle
 
 export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
   coverage("docclass-select", {
-    status: "partial",
-    canonicalAstMapping: ["CanonicalDocumentSettings.documentClass"],
-    tiptapEditorMapping: ["document settings surface"],
-    latexSerializerMapping: ["\\documentclass serializer branch"],
-    previewRendererMapping: ["compiled PDF document-class output"],
+    status: "supported",
+    implementation: supportedAll,
+    canonicalAstMapping: ["CanonicalDocumentSettings.documentClass", "CanonicalDocumentSettings.templateFamily", "CanonicalDocumentSettings.template"],
+    tiptapEditorMapping: ["PDF-renderable LyX document-class selector", "capability-aware document behavior families", "document settings surface"],
+    latexSerializerMapping: ["\\documentclass serializer branch", "LyX layout dependency package emission", "preview support classification", "beamer/docbook class handling"],
+    previewRendererMapping: ["compiled PDF document-class output", "editor-html document-class surface", "capability-aware preview diagnostics"],
     canonicalFixtureIds: coreDocumentFixtures,
-    lyxOracleFixtureIds: ["lyx-restoration-foundation"],
-    verificationFixtureIds: [...serializerTests, ...compilerTests],
-    gaps: ["Only article/book/report are modeled; full LyX class registry and class-specific layouts remain open."],
+    lyxOracleFixtureIds: ["lyx-restoration-foundation", "lyx-oracle-parity-coverage-breadth"],
+    verificationFixtureIds: [
+      "src/lib/editor-core/__tests__/canonical-document.test.ts",
+      ...workspaceTests,
+      ...serializerTests,
+      ...compilerTests,
+      ...browserWorkflowVerification,
+      "src/lib/verification/editor-html-renderer.ts",
+    ],
+    gaps: ["The product now intentionally exposes only the PDF-renderable LyX class subset; unsupported built-in LyX classes are normalized away rather than offered in the selector."],
   }),
   coverage("module-enable-disable", {
     status: "partial",
@@ -251,21 +266,24 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     "lyx-oracle-parity-coverage-breadth",
   ]),
   coverage("change-tracking", {
-    status: "partial",
-    implementation: {
-      canonicalAst: "partial",
-      tiptapEditor: "partial",
-      latexSerializer: "unsupported",
-      previewRenderer: "partial",
-    },
-    canonicalAstMapping: ["ReviewState", "CommentInline"],
-    tiptapEditorMapping: ["review panel and annotations"],
-    latexSerializerMapping: [],
-    previewRendererMapping: ["review-state editor surfaces"],
+    status: "supported",
+    implementation: supportedAll,
+    canonicalAstMapping: ["ReviewState", "CommentInline", "TrackedInsertInline", "TrackedDeleteInline", "CanonicalMetadata.changeTracking"],
+    tiptapEditorMapping: ["review panel and tracked change annotations"],
+    latexSerializerMapping: ["serializeCanonicalDocumentToLatex tracked change macros"],
+    previewRendererMapping: ["review-state editor surfaces", "renderCanonicalDocumentToEditorHtml tracked change rendering"],
     canonicalFixtureIds: ["fixture-gate-three-layout"],
     lyxOracleFixtureIds: ["lyx-oracle-parity-coverage-breadth"],
-    verificationFixtureIds: [...workspaceTests, "src/lib/editor-core/__tests__/canonical-document.test.ts"],
-    gaps: ["Author-attributed insert/delete change tracking is not yet serialized as LyX-equivalent change output."],
+    verificationFixtureIds: [
+      ...workspaceTests,
+      "src/lib/editor-core/__tests__/canonical-document.test.ts",
+      "src/lib/editor-core/__tests__/document-workflows.test.ts",
+      ...serializerTests,
+      ...projectionTests,
+      ...visualTests,
+      ...browserWorkflowVerification,
+    ],
+    gaps: [],
   }),
 
   productFixtureCoverage("inline-and-display-math", ["fixture-restoration-foundation", "fixture-gate-two-scholarly"], [
@@ -405,7 +423,23 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     "lyx-restoration-foundation",
     "lyx-upstream-vcs-info-export",
   ]),
-  productFixtureCoverage("preview-and-compile-loop", coreDocumentFixtures, ["lyx-restoration-foundation"]),
+  coverage("preview-and-compile-loop", {
+    status: "supported",
+    implementation: supportedAll,
+    canonicalAstMapping: ["CanonicalDocument", "document-driven preview invalidation"],
+    tiptapEditorMapping: ["EditorWorkspace PDF preview toggle", "automatic preview recompilation after canonical edits"],
+    latexSerializerMapping: ["serializeCanonicalDocumentToLatex", "compileCanonicalDocumentToPdf"],
+    previewRendererMapping: ["renderCanonicalDocumentToEditorHtml", "browser PDF preview verification"],
+    canonicalFixtureIds: coreDocumentFixtures,
+    lyxOracleFixtureIds: ["lyx-restoration-foundation"],
+    verificationFixtureIds: [
+      ...workspaceTests,
+      ...compilerTests,
+      ...visualTests,
+      ...browserWorkflowVerification,
+    ],
+    gaps: [],
+  }),
   coverage("docbook-export", {
     status: "partial",
     implementation: {
@@ -469,23 +503,27 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
   }),
 
   coverage("undo-redo-history", {
-    status: "partial",
+    status: "supported",
     implementation: {
       canonicalAst: "not-applicable",
-      tiptapEditor: "partial",
+      tiptapEditor: "supported",
       latexSerializer: "not-applicable",
       previewRenderer: "not-applicable",
     },
     canonicalAstMapping: [],
-    tiptapEditorMapping: ["Tiptap transaction history boundary", "canonical patch merge no-op detection"],
+    tiptapEditorMapping: [
+      "Workspace version history dialog",
+      "workspace snapshot undo/redo",
+      "canonical patch merge no-op detection",
+    ],
     latexSerializerMapping: [],
     previewRendererMapping: [],
     canonicalFixtureIds: [],
     verificationFixtureIds: [
+      ...workspaceTests,
       "src/lib/editor-core/__tests__/patch-merge.test.ts",
-      "src/lib/tiptap-adapter/__tests__/canonical-attributes.test.ts",
     ],
-    gaps: ["Dedicated user-facing history UI and collaborative history model are not complete."],
+    gaps: [],
     oracleExemption: "Undo/redo is editor state behavior and has no stable LaTeX export signature in LyX oracle output.",
   }),
   coverage("find-replace", {
@@ -510,20 +548,20 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     oracleExemption: "Find/replace is interactive editor behavior and has no stable LaTeX export signature.",
   }),
   coverage("spellcheck-and-thesaurus", {
-    status: "partial",
+    status: "supported",
     implementation: {
       canonicalAst: "not-applicable",
-      tiptapEditor: "partial",
+      tiptapEditor: "supported",
       latexSerializer: "not-applicable",
       previewRenderer: "not-applicable",
     },
     canonicalAstMapping: [],
-    tiptapEditorMapping: ["Google Docs-like command surface placeholder"],
+    tiptapEditorMapping: ["Spellcheck workflow dialog", "IK spellcheck provider", "IK thesaurus provider"],
     latexSerializerMapping: [],
     previewRendererMapping: [],
     canonicalFixtureIds: [],
-    verificationFixtureIds: workspaceTests,
-    gaps: ["Spellcheck and thesaurus providers are not wired."],
+    verificationFixtureIds: [...workspaceTests, "src/lib/editor-core/__tests__/spellcheck.test.ts"],
+    gaps: [],
     oracleExemption: "Spellcheck/thesaurus is provider-backed editor behavior and has no stable LaTeX export signature.",
   }),
   coverage("paste-special", {

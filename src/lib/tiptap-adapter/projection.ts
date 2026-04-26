@@ -280,6 +280,10 @@ function inlineToPlainText(child: CanonicalInline): string {
     return `[comment: ${child.children.map(inlineToPlainText).join("")} - ${child.comment}]`;
   }
 
+  if (child.type === "tracked_insert" || child.type === "tracked_delete") {
+    return child.text;
+  }
+
   return `[[${child.target}]]`;
 }
 
@@ -389,6 +393,19 @@ function inlineToTiptap(children: CanonicalInline[]): TiptapNode[] {
       };
     }
 
+    if (child.type === "tracked_insert" || child.type === "tracked_delete") {
+      return {
+        type: child.type,
+        attrs: {
+          changeId: child.id,
+          authorId: child.authorId,
+          authorName: child.authorName,
+          createdAt: child.createdAt,
+          text: child.text,
+        },
+      };
+    }
+
     return {
       type: "text",
       text: `[[${child.target}]]`,
@@ -399,7 +416,11 @@ function inlineToTiptap(children: CanonicalInline[]): TiptapNode[] {
 
 function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
   const id = String(node.attrs?.canonicalId ?? node.attrs?.["data-canonical-id"] ?? crypto.randomUUID());
-  const reviewState = node.attrs?.reviewState === "approved" ? "approved" : "needs_review";
+  const reviewState = node.attrs?.reviewState === "approved"
+    ? "approved"
+    : node.attrs?.reviewState === "rejected"
+      ? "rejected"
+      : "needs_review";
 
   if (node.type === "heading") {
     return {
@@ -655,6 +676,17 @@ function tiptapInlineToCanonical(nodes: TiptapNode[]): CanonicalInline[] {
         status: node.attrs.commentStatus === "resolved" ? "resolved" : "open",
         children: [{ type: "text", text: stripCommentWrapper(node.text ?? "") }],
         comment: String(node.attrs.commentText ?? ""),
+      };
+    }
+
+    if (node.type === "tracked_insert" || node.type === "tracked_delete") {
+      return {
+        type: node.type,
+        id: String(node.attrs?.changeId ?? crypto.randomUUID()),
+        authorId: String(node.attrs?.authorId ?? "author-editor"),
+        authorName: String(node.attrs?.authorName ?? "Editor"),
+        createdAt: String(node.attrs?.createdAt ?? new Date().toISOString()),
+        text: String(node.attrs?.text ?? ""),
       };
     }
 

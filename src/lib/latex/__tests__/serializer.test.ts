@@ -47,6 +47,113 @@ describe("deterministic LaTeX serializer", () => {
     ]);
   });
 
+  it("serializes author-attributed tracked changes into review-aware LaTeX", () => {
+    const result = serializeCanonicalDocumentToLatex({
+      ...restorationFoundationFixture,
+      metadata: {
+        ...restorationFoundationFixture.metadata,
+        changeTracking: {
+          currentAuthorId: "author-alex-reviewer",
+          authors: [{ id: "author-alex-reviewer", name: "Alex Reviewer" }],
+        },
+      },
+      blocks: restorationFoundationFixture.blocks.map((block) => (
+        block.id === "block-intro" && block.type === "paragraph"
+          ? {
+              ...block,
+              children: [
+                { type: "text", text: "Let " },
+                {
+                  type: "tracked_insert",
+                  id: "change-insert",
+                  authorId: "author-alex-reviewer",
+                  authorName: "Alex Reviewer",
+                  createdAt: "2026-04-26T00:00:00.000Z",
+                  text: "carefully ",
+                },
+                { type: "math_inline", tex: "v" },
+                { type: "text", text: " denote " },
+                {
+                  type: "tracked_delete",
+                  id: "change-delete",
+                  authorId: "author-alex-reviewer",
+                  authorName: "Alex Reviewer",
+                  createdAt: "2026-04-26T00:00:00.000Z",
+                  text: "velocity",
+                },
+                { type: "text", text: " and cite " },
+                { type: "citation", key: "newton1687" },
+                { type: "text", text: "." },
+              ],
+            }
+          : block
+      )),
+    });
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.source).toContain("\\usepackage[normalem]{ulem}");
+    expect(result.source).toContain("\\IkTrackedInsert{Alex Reviewer}{carefully }");
+    expect(result.source).toContain("\\IkTrackedDelete{Alex Reviewer}{velocity}");
+  });
+
+  it("serializes presentation-oriented document classes through the LaTeX documentclass surface", () => {
+    const result = serializeCanonicalDocumentToLatex({
+      ...restorationFoundationFixture,
+      settings: {
+        ...restorationFoundationFixture.settings,
+        documentClass: "beamer",
+        template: "presentation-default",
+        templateFamily: "Presentations",
+      },
+    });
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.source).toContain("\\documentclass{beamer}");
+    expect(result.source).toContain("\\setbeamertemplate{navigation symbols}{}");
+    expect(result.source).toContain("\\usetheme{Madrid}");
+    expect(result.source).toContain("\\title{Restoration Foundation Fixture}");
+    expect(result.source).toContain("\\titlepage");
+    expect(result.source).toContain("\\begin{frame}[fragile,allowframebreaks]{Restoration Foundation Fixture}");
+    expect(result.source).toContain("\\centering");
+    expect(result.source).not.toContain("\\usepackage[margin=1in]{geometry}");
+  });
+
+  it("serializes extended LyX classes with their declared LaTeX class and required packages", () => {
+    const result = serializeCanonicalDocumentToLatex({
+      ...restorationFoundationFixture,
+      settings: {
+        ...restorationFoundationFixture.settings,
+        documentClass: "article-beamer",
+        template: "lyx-article-beamer",
+        templateFamily: "Articles",
+      },
+    });
+
+    expect(result.source).toContain("\\documentclass{article}");
+    expect(result.source).toContain("\\usepackage{beamerarticle}");
+    expect(result.source).toContain("\\usepackage{pgf}");
+  });
+
+  it("emits a diagnostic for DocBook/XML-oriented LyX classes", () => {
+    const result = serializeCanonicalDocumentToLatex({
+      ...restorationFoundationFixture,
+      settings: {
+        ...restorationFoundationFixture.settings,
+        documentClass: "docbook",
+        template: "lyx-docbook",
+        templateFamily: "Articles",
+      },
+    });
+
+    expect(result.source).toContain("\\documentclass{docbook}");
+    expect(result.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "docbook-preview-latex-compatibility",
+        severity: "warning",
+      }),
+    ]));
+  });
+
   it("serializes Gate 1 structures into deterministic LaTeX", () => {
     const result = serializeCanonicalDocumentToLatex(gateOneStructureFixture);
 

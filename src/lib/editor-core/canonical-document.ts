@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  coerceLyxDocumentClassToPdfPreviewable,
+  isBuiltInLyxDocumentClass,
+  LYX_TEMPLATE_FAMILY_VALUES,
+} from "@/lib/lyx/document-classes";
 import type { CanonicalBlock, CanonicalDocument } from "./types";
 
 export const canonicalDocumentSchemaVersion = 1;
@@ -8,6 +13,14 @@ const reviewStateSchema = z.enum(["needs_review", "approved", "rejected"]);
 const provenanceSchema = z.object({
   sourceRegionId: z.string().min(1),
   confidence: z.number().min(0).max(1),
+});
+
+const changeTrackingMetadataSchema = z.object({
+  currentAuthorId: z.string().min(1),
+  authors: z.array(z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+  })).min(1),
 });
 
 type InlineSchema = z.ZodType<import("./types").CanonicalInline>;
@@ -58,6 +71,22 @@ const inlineSchema: InlineSchema = z.lazy(() => z.discriminatedUnion("type", [
     status: z.enum(["open", "resolved"]),
     children: z.array(inlineSchema),
     comment: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal("tracked_insert"),
+    id: z.string().min(1),
+    authorId: z.string().min(1),
+    authorName: z.string().min(1),
+    createdAt: z.string().min(1),
+    text: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal("tracked_delete"),
+    id: z.string().min(1),
+    authorId: z.string().min(1),
+    authorName: z.string().min(1),
+    createdAt: z.string().min(1),
+    text: z.string().min(1),
   }),
 ]));
 
@@ -237,12 +266,12 @@ const canonicalDocumentSchema = z.object({
   title: z.string().min(1),
   updatedAt: z.string().min(1),
   settings: z.object({
-    documentClass: z.enum(["book", "article", "report"]),
+    documentClass: z.string().refine(isBuiltInLyxDocumentClass, "Unsupported LyX document class."),
     language: z.string().min(1),
     encoding: z.literal("utf8"),
     modules: z.array(z.string().min(1)),
     template: z.string().min(1),
-    templateFamily: z.enum(["Articles", "Books", "Letters", "Presentations", "Custom"]).optional(),
+    templateFamily: z.enum(LYX_TEMPLATE_FAMILY_VALUES).optional(),
     enabledModules: z.array(z.string().min(1)).optional(),
     bibliographyEngine: z.enum(["basic", "natbib", "biblatex"]).optional(),
     citationStyle: z.enum(["numeric", "authoryear"]).optional(),
@@ -250,6 +279,11 @@ const canonicalDocumentSchema = z.object({
     languagePackage: z.enum(["babel", "polyglossia"]).optional(),
     secondaryLanguages: z.array(z.string().min(1)).optional(),
     textDirection: z.enum(["ltr", "rtl"]).optional(),
+    pageLayout: z.object({
+      topMarginPx: z.number().int().positive().optional(),
+      leftMarginPx: z.number().int().positive().optional(),
+      rightMarginPx: z.number().int().positive().optional(),
+    }).optional(),
     branches: z.array(z.object({
       id: z.string().min(1),
       name: z.string().min(1),
@@ -266,6 +300,7 @@ const canonicalDocumentSchema = z.object({
     projectId: z.string().min(1),
     sourceDocumentId: z.string().min(1),
     reviewState: reviewStateSchema,
+    changeTracking: changeTrackingMetadataSchema.optional(),
     workspace: z.object({
       activeDocumentTabId: z.string().min(1),
       documentTabs: z.array(z.object({
@@ -281,6 +316,7 @@ const canonicalDocumentSchema = z.object({
 export function normalizeCanonicalDocument(
   document: CanonicalDocument,
 ): CanonicalDocument {
+  const normalizedDocumentClass = coerceLyxDocumentClassToPdfPreviewable(document.settings.documentClass);
   return {
     ...document,
     schemaVersion: canonicalDocumentSchemaVersion,
@@ -288,10 +324,24 @@ export function normalizeCanonicalDocument(
     updatedAt: document.updatedAt || new Date().toISOString(),
     settings: {
       ...document.settings,
+      documentClass: normalizedDocumentClass.value,
+      template: normalizedDocumentClass.template,
+      templateFamily: normalizedDocumentClass.templateFamily,
       modules: [...new Set(document.settings.modules)].sort(),
     },
     metadata: {
       ...document.metadata,
+      changeTracking: document.metadata.changeTracking ? {
+        currentAuthorId: document.metadata.changeTracking.authors.some((author) => (
+          author.id === document.metadata.changeTracking?.currentAuthorId
+        ))
+          ? document.metadata.changeTracking.currentAuthorId
+          : document.metadata.changeTracking.authors[0].id,
+        authors: document.metadata.changeTracking.authors.map((author) => ({
+          id: author.id.trim(),
+          name: author.name.trim(),
+        })),
+      } : undefined,
       workspace: document.metadata.workspace ? {
         activeDocumentTabId: document.metadata.workspace.documentTabs.some((tab) => (
           tab.id === document.metadata.workspace?.activeDocumentTabId

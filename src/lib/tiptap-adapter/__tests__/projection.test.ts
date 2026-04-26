@@ -63,6 +63,53 @@ describe("Tiptap projection boundary", () => {
     });
   });
 
+  it("round trips tracked insertions and deletions through the adapter boundary", () => {
+    const projected = canonicalToTiptapDocument({
+      ...restorationFoundationFixture,
+      metadata: {
+        ...restorationFoundationFixture.metadata,
+        changeTracking: {
+          currentAuthorId: "author-alex-reviewer",
+          authors: [{ id: "author-alex-reviewer", name: "Alex Reviewer" }],
+        },
+      },
+      blocks: restorationFoundationFixture.blocks.map((block) => (
+        block.id === "block-intro" && block.type === "paragraph"
+          ? {
+              ...block,
+              children: [
+                { type: "text", text: "Let " },
+                {
+                  type: "tracked_insert",
+                  id: "change-insert",
+                  authorId: "author-alex-reviewer",
+                  authorName: "Alex Reviewer",
+                  createdAt: "2026-04-26T00:00:00.000Z",
+                  text: "carefully ",
+                },
+                { type: "text", text: "v denote " },
+                {
+                  type: "tracked_delete",
+                  id: "change-delete",
+                  authorId: "author-alex-reviewer",
+                  authorName: "Alex Reviewer",
+                  createdAt: "2026-04-26T00:00:00.000Z",
+                  text: "velocity",
+                },
+                { type: "text", text: "." },
+              ],
+            }
+          : block
+      )),
+    });
+    const patch = tiptapDocumentToCanonicalPatch(projected);
+
+    expect(JSON.stringify(projected)).toContain("\"type\":\"tracked_insert\"");
+    expect(JSON.stringify(projected)).toContain("\"type\":\"tracked_delete\"");
+    expect(JSON.stringify(patch.blocks)).toContain("\"type\":\"tracked_insert\"");
+    expect(JSON.stringify(patch.blocks)).toContain("\"type\":\"tracked_delete\"");
+  });
+
   it("round trips Gate 1 list, table, figure, and page-break structures", () => {
     const projected = canonicalToTiptapDocument(gateOneStructureFixture);
     const patch = tiptapDocumentToCanonicalPatch(projected);

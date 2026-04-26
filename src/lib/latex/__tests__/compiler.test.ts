@@ -51,6 +51,66 @@ describe("LaTeX PDF compiler", () => {
     );
   }, 30_000);
 
+  it("compiles presentation-oriented document classes into a PDF preview artifact", async () => {
+    const result = await compileCanonicalDocumentToPdf({
+      ...restorationFoundationFixture,
+      id: "fixture-beamer-preview",
+      settings: {
+        ...restorationFoundationFixture.settings,
+        documentClass: "beamer",
+        template: "presentation-default",
+        templateFamily: "Presentations",
+      },
+    });
+
+    expect(result.status).toBe("compiled");
+    expect(result.previewImageBase64?.startsWith("iVBOR")).toBe(true);
+    expect(normalizePdfParityText(result.extractedText)).toContain("A Treatise on Motion");
+  }, 30_000);
+
+  it("fails fast for DocBook/XML classes that are outside the PDF preview pipeline", async () => {
+    const result = await compileCanonicalDocumentToPdf({
+      ...restorationFoundationFixture,
+      id: "fixture-docbook-preview",
+      settings: {
+        ...restorationFoundationFixture.settings,
+        documentClass: "docbook",
+        template: "lyx-docbook",
+        templateFamily: "Articles",
+      },
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "docbook-preview-unsupported",
+        severity: "error",
+      }),
+    ]));
+  });
+
+  it("fails fast for LyX classes that are source-only in the bundled PDF preview environment", async () => {
+    const result = await compileCanonicalDocumentToPdf({
+      ...restorationFoundationFixture,
+      id: "fixture-acmart-preview",
+      settings: {
+        ...restorationFoundationFixture.settings,
+        documentClass: "acmart",
+        template: "lyx-acmart",
+        templateFamily: "Articles",
+      },
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "document-class-preview-unavailable",
+        severity: "error",
+      }),
+    ]));
+    expect(result.log).toContain("source parity");
+  });
+
   it("compiles Gate 1 structures into a text-verified rendered preview image", async () => {
     const result = await compileCanonicalDocumentToPdf(gateOneStructureFixture);
 

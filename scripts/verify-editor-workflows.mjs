@@ -151,6 +151,7 @@ async function main() {
     });
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
     const savedDocuments = [];
+    let previewRequestCount = 0;
     await page.route("**/api/documents/default", async (route) => {
       if (route.request().method() !== "PUT") {
         await route.continue();
@@ -171,6 +172,11 @@ async function main() {
         consoleErrors.push(message.text());
       }
     });
+    page.on("request", (request) => {
+      if (request.url().includes("/api/latex/preview")) {
+        previewRequestCount += 1;
+      }
+    });
 
     await page.goto(appUrl, { waitUntil: "domcontentloaded" });
     await page.locator(".ProseMirror").waitFor({ state: "visible", timeout: 30_000 });
@@ -178,6 +184,33 @@ async function main() {
     if (countOccurrences(initialText, "s = vt") !== 1) {
       throw new Error(`Expected one math block before replace, saw text:\n${initialText}`);
     }
+
+    const documentClassOptions = await page.locator('[name="document-class"] option').evaluateAll((options) => (
+      options.map((option) => ({
+        value: option.getAttribute("value"),
+        label: option.textContent?.trim(),
+      }))
+    ));
+    if (documentClassOptions.length !== 26) {
+      throw new Error(`Expected the document class selector to expose only the PDF-renderable LyX classes, found ${documentClassOptions.length} options.`);
+    }
+    if (
+      !documentClassOptions.some((option) => option.value === "beamer")
+      || !documentClassOptions.some((option) => option.value === "europecv")
+      || !documentClassOptions.some((option) => option.value === "a0poster")
+      || documentClassOptions.some((option) => option.value === "acmart")
+      || documentClassOptions.some((option) => option.value === "docbook")
+    ) {
+      throw new Error(`Expected only PDF-renderable LyX document classes in the selector, saw ${JSON.stringify(documentClassOptions)}.`);
+    }
+
+    await page.getByRole("combobox", { name: "Document class" }).selectOption("report");
+    await page.getByRole("button", { name: "Show source" }).click();
+    const sourcePanel = page.getByRole("complementary", { name: "Generated LaTeX source" });
+    await sourcePanel.waitFor({ state: "visible" });
+    await sourcePanel.getByText("\\documentclass{report}").waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Show source" }).click();
+    await sourcePanel.waitFor({ state: "hidden" });
 
     const outline = page.getByRole("navigation", { name: "Document outline" });
     const initialOutlineHeading = outline.getByRole("button", { name: "A Treatise on Motion" });
@@ -198,6 +231,28 @@ async function main() {
     const outlineCountAfterCollapse = await outline.count();
     if (outlineCountAfterCollapse !== 0) {
       throw new Error(`Collapsed left sidebar should hide the document outline, found ${outlineCountAfterCollapse}.`);
+    }
+
+    await expandLeftSidebar.click();
+    const resizeHandle = leftWorkspace.getByRole("separator", { name: "Resize left sidebar" });
+    const widthBeforeResize = await page.locator(".ik-doc-workspace").evaluate((node) => (
+      getComputedStyle(node).getPropertyValue("--ik-left-sidebar-width").trim()
+    ));
+    const resizeHandleBox = await resizeHandle.boundingBox();
+    if (!resizeHandleBox) {
+      throw new Error("Could not measure the left sidebar resize handle.");
+    }
+    await page.mouse.move(resizeHandleBox.x + (resizeHandleBox.width / 2), resizeHandleBox.y + 30);
+    await page.mouse.down();
+    await page.mouse.move(resizeHandleBox.x + 84, resizeHandleBox.y + 30, { steps: 4 });
+    await page.mouse.up();
+    const widthAfterResize = await page.locator(".ik-doc-workspace").evaluate((node) => (
+      getComputedStyle(node).getPropertyValue("--ik-left-sidebar-width").trim()
+    ));
+    const widthBeforeResizePx = Number.parseInt(widthBeforeResize, 10);
+    const widthAfterResizePx = Number.parseInt(widthAfterResize, 10);
+    if (widthBeforeResize === widthAfterResize || Number.isNaN(widthBeforeResizePx) || Number.isNaN(widthAfterResizePx) || (widthAfterResizePx - widthBeforeResizePx) < 60) {
+      throw new Error(`Dragging the left sidebar should widen it, saw ${widthBeforeResize} -> ${widthAfterResize}.`);
     }
 
     await leftWorkspace.getByRole("button", { name: "Open source review" }).click();
@@ -222,6 +277,14 @@ async function main() {
       throw new Error(`New document tab should become selected, got ${tabTwoSelected}.`);
     }
     await page.getByRole("heading", { name: "Untitled tab 2" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Version history" }).click();
+    const historyDialog = page.getByRole("dialog", { name: "Version history" });
+    await historyDialog.waitFor({ state: "visible" });
+    await historyDialog.getByText("Restore recent workspace states, jump back to a known-good version, or step through your edit trail.").waitFor({ state: "visible" });
+    await historyDialog.getByLabel("Version history summary").getByText(/3\s+of\s+3\s+versions/).waitFor({ state: "visible" });
+    await historyDialog.getByRole("button", { name: "Changed document class to Report" }).waitFor({ state: "visible" });
+    await historyDialog.getByRole("button", { name: "Close" }).click();
+    await historyDialog.waitFor({ state: "hidden" });
     if ((await page.locator(".ProseMirror").innerText()).includes("A Treatise on Motion")) {
       throw new Error("Selecting a new document tab should replace the editor content, but Tab 1 text was still visible.");
     }
@@ -236,12 +299,14 @@ async function main() {
     await page.getByText("Saved").waitFor({ state: "visible" });
     const savedDocument = savedDocuments.at(-1);
     if (
-      savedDocument?.metadata?.workspace?.activeDocumentTabId !== "tab-2"
+      savedDocument?.settings?.documentClass !== "report"
+      || savedDocument?.settings?.templateFamily !== "Reports"
+      || savedDocument?.metadata?.workspace?.activeDocumentTabId !== "tab-2"
       || savedDocument.metadata.workspace.documentTabs.length !== 2
       || !JSON.stringify(savedDocument.metadata.workspace.documentTabs[0].blocks).includes("A Treatise on Motion")
       || !JSON.stringify(savedDocument.metadata.workspace.documentTabs[1].blocks).includes("Tab Two Section")
     ) {
-      throw new Error(`Saved document did not persist tab metadata correctly: ${JSON.stringify(savedDocument?.metadata?.workspace)}`);
+      throw new Error(`Saved document did not persist settings/tab metadata correctly: ${JSON.stringify({ settings: savedDocument?.settings, workspace: savedDocument?.metadata?.workspace })}`);
     }
 
     const tabOne = page.getByRole("tab", { name: "Tab 1" });
@@ -304,6 +369,84 @@ async function main() {
         `Outline click did not move the editor selection to the imported heading; focused ${JSON.stringify(focusedCanonicalSelection)}.`,
       );
     }
+
+    await page.getByRole("button", { name: "PDF preview" }).click();
+    const pdfPreview = page.getByRole("complementary", { name: "PDF preview" });
+    await pdfPreview.waitFor({ state: "visible" });
+    const previewImage = page.getByRole("img", { name: "Compiled PDF preview page" });
+    await previewImage.waitFor({ state: "visible", timeout: 45_000 });
+    await page.getByLabel("PDF preview verified").waitFor({ state: "visible" });
+    const initialPreviewSrc = await previewImage.getAttribute("src");
+    if (previewRequestCount !== 1) {
+      throw new Error(`Opening PDF preview should compile exactly once, saw ${previewRequestCount} preview requests.`);
+    }
+
+    await page.getByRole("combobox", { name: "Document class" }).selectOption("beamer");
+    const classRecompileStart = Date.now();
+    while (previewRequestCount < 2 && Date.now() - classRecompileStart < 45_000) {
+      await page.waitForTimeout(250);
+    }
+    if (previewRequestCount !== 2) {
+      throw new Error(`Changing the document class with PDF preview open should trigger one recompile, saw ${previewRequestCount} preview requests.`);
+    }
+    let beamerPreviewState = null;
+    const beamerPreviewWaitStart = Date.now();
+    while (Date.now() - beamerPreviewWaitStart < 45_000) {
+      beamerPreviewState = await page.evaluate(() => {
+        const pageStack = document.querySelector(".ik-doc-page-stack");
+        const heading = document.querySelector(".ik-doc-editor-page h1");
+        const preview = document.querySelector('img[alt="Compiled PDF preview page"]');
+        return {
+          documentClass: pageStack?.getAttribute("data-document-class"),
+          documentBehavior: pageStack?.getAttribute("data-document-behavior"),
+          headingAlign: heading ? window.getComputedStyle(heading).textAlign : null,
+          previewSrc: preview?.getAttribute("src") ?? null,
+        };
+      });
+      if (
+        beamerPreviewState.documentClass === "beamer"
+        && beamerPreviewState.documentBehavior === "beamer"
+        && beamerPreviewState.headingAlign === "center"
+        && beamerPreviewState.previewSrc !== initialPreviewSrc
+      ) {
+        break;
+      }
+      await page.waitForTimeout(250);
+    }
+    if (
+      !beamerPreviewState
+      || beamerPreviewState.documentClass !== "beamer"
+      || beamerPreviewState.documentBehavior !== "beamer"
+      || beamerPreviewState.headingAlign !== "center"
+      || beamerPreviewState.previewSrc === initialPreviewSrc
+    ) {
+      throw new Error(`Document class change should update formatting and refresh the preview, got ${JSON.stringify(beamerPreviewState)}.`);
+    }
+
+    await page.getByRole("combobox", { name: "Document class" }).selectOption("report");
+    const reportRecompileStart = Date.now();
+    while (previewRequestCount < 3 && Date.now() - reportRecompileStart < 45_000) {
+      await page.waitForTimeout(250);
+    }
+    if (previewRequestCount !== 3) {
+      throw new Error(`Switching the document class back to report should trigger one recompile, saw ${previewRequestCount} preview requests.`);
+    }
+    await page.getByLabel("PDF preview verified").waitFor({ state: "visible" });
+
+    await page.getByRole("button", { name: "Paste special", exact: true }).click();
+    const previewPastePanel = page.getByRole("complementary", { name: "Paste special" });
+    await previewPastePanel.getByRole("combobox", { name: "Paste format" }).selectOption("plain-text");
+    await previewPastePanel.getByRole("textbox", { name: "Paste source" }).fill("Loop refresh note.");
+    await previewPastePanel.getByRole("button", { name: "Insert paste" }).click();
+    await page.getByText("Loop refresh note.").waitFor({ state: "visible" });
+    const recompileStart = Date.now();
+    while (previewRequestCount < 4 && Date.now() - recompileStart < 45_000) {
+      await page.waitForTimeout(250);
+    }
+    if (previewRequestCount !== 4) {
+      throw new Error(`Editing with PDF preview open should trigger one recompile, saw ${previewRequestCount} preview requests.`);
+    }
+    await page.getByLabel("PDF preview verified").waitFor({ state: "visible" });
 
     await page.keyboard.press(process.platform === "darwin" ? "Meta+F" : "Control+F");
     const findDialog = page.getByRole("dialog", { name: "Find and replace" });
@@ -398,6 +541,46 @@ async function main() {
       throw new Error(`Find/replace duplicated the math block; saw text:\n${replacedText}`);
     }
 
+    await page.getByRole("button", { name: "Review", exact: true }).click();
+    const reviewPanel = page.getByRole("complementary", { name: "Source review" });
+    await reviewPanel.waitFor({ state: "visible" });
+    await reviewPanel.getByRole("textbox", { name: "Review author" }).fill("Alex Reviewer");
+    await reviewPanel.getByRole("combobox", { name: "Review target block" }).selectOption("block-intro");
+    await reviewPanel.getByRole("textbox", { name: "Tracked deletion text" }).fill("velocity");
+    await reviewPanel.getByRole("button", { name: "Track deletion" }).click();
+    await page.getByText("Tracked deletion recorded.").waitFor({ state: "visible" });
+    const trackedDeleteCount = await page.locator(".ik-tracked-delete").count();
+    if (trackedDeleteCount !== 1) {
+      throw new Error(`Review deletion should create one tracked deletion, found ${trackedDeleteCount}.`);
+    }
+
+    await reviewPanel.getByRole("textbox", { name: "Tracked insertion anchor" }).fill("go ");
+    await reviewPanel.getByRole("textbox", { name: "Tracked insertion text" }).fill("carefully ");
+    await reviewPanel.getByRole("button", { name: "Track insertion" }).click();
+    await page.getByText("Tracked insertion recorded.").waitFor({ state: "visible" });
+    const trackedInsertCount = await page.locator(".ik-tracked-insert").count();
+    if (trackedInsertCount !== 1) {
+      throw new Error(`Review insertion should create one tracked insertion, found ${trackedInsertCount}.`);
+    }
+
+    const reviewText = await page.locator(".ProseMirror").innerText();
+    if (!reviewText.includes("go carefully denote velocity")) {
+      throw new Error(`Tracked changes did not render in the editor text as expected:\n${reviewText}`);
+    }
+
+    await reviewPanel.getByRole("button", { name: "Accept" }).first().click();
+    const acceptedTrackedInsertCount = await page.locator(".ik-tracked-insert").count();
+    if (acceptedTrackedInsertCount !== 0) {
+      throw new Error(`Accepting the tracked insertion should remove its review chip, found ${acceptedTrackedInsertCount}.`);
+    }
+
+    await reviewPanel.getByRole("button", { name: "Reject" }).first().click();
+    await page.getByText("No tracked changes yet.").waitFor({ state: "visible" });
+    const clearedTrackedChanges = await page.locator(".ik-tracked-delete, .ik-tracked-insert").count();
+    if (clearedTrackedChanges !== 0) {
+      throw new Error(`Resolving tracked changes should clear editor review spans, found ${clearedTrackedChanges}.`);
+    }
+
     const overlayStyles = await page.evaluate(() => {
       const host = document.createElement("div");
       host.className = "ik-tex-page-live-layer";
@@ -429,7 +612,7 @@ async function main() {
       throw new Error(`Browser console errors were emitted:\n${consoleErrors.join("\n")}`);
     }
 
-    console.log("Editor workflow browser verification passed: persisted real document tabs, collapsible left workspace, document outline navigation, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
+    console.log("Editor workflow browser verification passed: persisted real document tabs, collapsible left workspace, document outline navigation, PDF preview recompilation, tracked-change review workflow, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
   } finally {
     if (browser) {
       await browser.close();

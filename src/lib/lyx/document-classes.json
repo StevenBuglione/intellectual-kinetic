@@ -1,0 +1,1216 @@
+[
+  {
+    "id": "a0poster",
+    "latexClass": "a0poster",
+    "dependencies": [],
+    "label": "A0 Poster",
+    "category": "Posters"
+  },
+  {
+    "id": "aa",
+    "latexClass": "aa",
+    "dependencies": [
+      "answers.sty"
+    ],
+    "label": "Astronomy & Astrophysics",
+    "category": "Articles"
+  },
+  {
+    "id": "aapaper",
+    "latexClass": "aa",
+    "dependencies": [],
+    "label": "Astronomy & Astrophysics (V. 4, Obsolete)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "aastex",
+    "latexClass": "aastex",
+    "dependencies": [
+      "amssymb.sty",
+      "latexsym.sty",
+      "natbib.sty",
+      "verbatim.sty"
+    ],
+    "label": "American Astronomical Society (AASTeX v. 5)",
+    "category": "Articles"
+  },
+  {
+    "id": "aastex6",
+    "latexClass": "aastex6",
+    "dependencies": [
+      "amssymb.sty",
+      "latexsym.sty",
+      "natbib.sty",
+      "verbatim.sty"
+    ],
+    "label": "American Astronomical Society (AASTeX v. 6)",
+    "category": "Articles"
+  },
+  {
+    "id": "aastex62",
+    "latexClass": "aastex62",
+    "dependencies": [
+      "amssymb.sty",
+      "latexsym.sty",
+      "natbib.sty",
+      "verbatim.sty"
+    ],
+    "label": "American Astronomical Society (AASTeX v. 6.2)",
+    "category": "Articles"
+  },
+  {
+    "id": "achemso",
+    "latexClass": "achemso",
+    "dependencies": [
+      "caption.sty",
+      "courier.sty",
+      "cleveref.sty",
+      "float.sty",
+      "helvet.sty",
+      "mathptmx.sty",
+      "mciteplus.sty",
+      "natbib.sty",
+      "natmove.sty",
+      "setspace.sty",
+      "xkeyval.sty"
+    ],
+    "label": "American Chemical Society (ACS)",
+    "category": "Articles"
+  },
+  {
+    "id": "acm-sigs",
+    "latexClass": "acm_proc_article-sp",
+    "dependencies": [],
+    "label": "ACM SIG Proceedings (SP, Obsolete)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "acm-sigs-alt",
+    "latexClass": "sig-alternate",
+    "dependencies": [],
+    "label": "ACM SIGS ('Alternate' Style, obsolete)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "acmart",
+    "latexClass": "acmart",
+    "dependencies": [],
+    "label": "Association for Computing Machinery (ACM)",
+    "category": "Articles"
+  },
+  {
+    "id": "acmsiggraph",
+    "latexClass": "acmsiggraph",
+    "dependencies": [
+      "comment.sty",
+      "lineno.sty"
+    ],
+    "label": "ACM SIGGRAPH (older than 0.91, obsolete)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "acmsiggraph-0-92",
+    "latexClass": "acmsiggraph",
+    "dependencies": [
+      "comment.sty",
+      "lineno.sty"
+    ],
+    "label": "ACM SIGGGRAPH 0.92 (obsolete)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "AEA",
+    "latexClass": "AEA",
+    "dependencies": [
+      "amsmath.sty",
+      "harvard.sty",
+      "multicol.sty",
+      "setspace.sty"
+    ],
+    "label": "American Economic Association (AEA)",
+    "category": "Articles"
+  },
+  {
+    "id": "agums",
+    "latexClass": "aguplus",
+    "dependencies": [
+      "agums.sty"
+    ],
+    "label": "American Geophysical Union (AGUPLUS Manuscript)",
+    "category": "Articles"
+  },
+  {
+    "id": "agutex",
+    "latexClass": "agutex",
+    "dependencies": [],
+    "label": "American Geophysical Union (AGUTeX)",
+    "category": "Articles"
+  },
+  {
+    "id": "amsart",
+    "latexClass": "amsart",
+    "dependencies": [],
+    "label": "amsart",
+    "category": "Articles"
+  },
+  {
+    "id": "amsbook",
+    "latexClass": "amsbook",
+    "dependencies": [],
+    "label": "amsbook",
+    "category": "Books"
+  },
+  {
+    "id": "apa",
+    "latexClass": "apa",
+    "dependencies": [
+      "apacite.sty",
+      "endfloat.sty",
+      "endnotes.sty",
+      "flushend.sty",
+      "txfonts.sty"
+    ],
+    "label": "American Psychological Association (APA)",
+    "category": "Articles"
+  },
+  {
+    "id": "apa6",
+    "latexClass": "apa6",
+    "dependencies": [],
+    "label": "American Psychological Association (APA), v. 6",
+    "category": "Articles"
+  },
+  {
+    "id": "apa7",
+    "latexClass": "apa7",
+    "dependencies": [],
+    "label": "American Psychological Association (APA), v. 7",
+    "category": "Articles"
+  },
+  {
+    "id": "arab-article",
+    "latexClass": "arabart",
+    "dependencies": [
+      "arabrep",
+      "altxext.sty",
+      "arabext.sty",
+      "arabtex.sty"
+    ],
+    "label": "Arabic Article",
+    "category": "Articles"
+  },
+  {
+    "id": "article",
+    "latexClass": "article",
+    "dependencies": [],
+    "label": "article",
+    "category": "Articles"
+  },
+  {
+    "id": "article-beamer",
+    "latexClass": "article",
+    "dependencies": [
+      "beamerarticle.sty",
+      "keyval.sty",
+      "pgf.sty"
+    ],
+    "label": "Beamer Article (Standard Class)",
+    "category": "Articles"
+  },
+  {
+    "id": "beamer",
+    "latexClass": "beamer",
+    "dependencies": [],
+    "label": "Beamer",
+    "category": "Presentations"
+  },
+  {
+    "id": "beamerposter",
+    "latexClass": "beamer",
+    "dependencies": [
+      "beamerposter.sty"
+    ],
+    "label": "Beamerposter",
+    "category": "Posters"
+  },
+  {
+    "id": "book",
+    "latexClass": "book",
+    "dependencies": [],
+    "label": "book",
+    "category": "Books"
+  },
+  {
+    "id": "broadway",
+    "latexClass": "broadway",
+    "dependencies": [
+      "extramarks.sty",
+      "fancyhdr.sty",
+      "lastpage.sty"
+    ],
+    "label": "Broadway",
+    "category": "Scripts"
+  },
+  {
+    "id": "bxjsarticle",
+    "latexClass": "bxjsarticle",
+    "dependencies": [],
+    "label": "bxjsarticle",
+    "category": "Articles"
+  },
+  {
+    "id": "bxjsbook",
+    "latexClass": "bxjsbook",
+    "dependencies": [],
+    "label": "bxjsbook",
+    "category": "Books"
+  },
+  {
+    "id": "bxjsreport",
+    "latexClass": "bxjsreport",
+    "dependencies": [],
+    "label": "bxjsreport",
+    "category": "Reports"
+  },
+  {
+    "id": "bxjsslide",
+    "latexClass": "bxjsslide",
+    "dependencies": [],
+    "label": "bxjsslide",
+    "category": "Presentations"
+  },
+  {
+    "id": "chess",
+    "latexClass": "article",
+    "dependencies": [
+      "calc.sty",
+      "lambda.sty",
+      "lyxskak.sty",
+      "pst-node.sty"
+    ],
+    "label": "Chess",
+    "category": "Articles"
+  },
+  {
+    "id": "cl2emult",
+    "latexClass": "cl2emult",
+    "dependencies": [],
+    "label": "Springer Contributed Books (cl2emult, Obsolete!)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "copernicus",
+    "latexClass": "copernicus",
+    "dependencies": [
+      "manuscript.sty"
+    ],
+    "label": "Copernicus Publications Manuscript Preparation",
+    "category": "Articles"
+  },
+  {
+    "id": "ctex-article",
+    "latexClass": "ctexart",
+    "dependencies": [
+      "savesym.sty",
+      "xeCJK.sty"
+    ],
+    "label": "Chinese Article (CTeX)",
+    "category": "Articles"
+  },
+  {
+    "id": "ctex-book",
+    "latexClass": "ctexbook",
+    "dependencies": [
+      "savesym.sty",
+      "xeCJK.sty"
+    ],
+    "label": "Chinese Book (CTeX)",
+    "category": "Books"
+  },
+  {
+    "id": "ctex-report",
+    "latexClass": "ctexrep",
+    "dependencies": [
+      "savesym.sty",
+      "xeCJK.sty"
+    ],
+    "label": "Chinese Report (CTeX)",
+    "category": "Reports"
+  },
+  {
+    "id": "dinbrief",
+    "latexClass": "dinbrief",
+    "dependencies": [],
+    "label": "dinbrief",
+    "category": "Letters"
+  },
+  {
+    "id": "docbook",
+    "latexClass": "docbook",
+    "dependencies": [],
+    "label": "DocBook Article (XML)",
+    "category": "Articles"
+  },
+  {
+    "id": "docbook-book",
+    "latexClass": "docbook5_book",
+    "dependencies": [],
+    "label": "DocBook Book (XML)",
+    "category": "Books"
+  },
+  {
+    "id": "docbook-chapter",
+    "latexClass": "docbook5_chapter",
+    "dependencies": [],
+    "label": "DocBook Chapter (XML)",
+    "category": "Books"
+  },
+  {
+    "id": "docbook-section",
+    "latexClass": "docbook5_section",
+    "dependencies": [],
+    "label": "DocBook Section (XML)",
+    "category": "Books"
+  },
+  {
+    "id": "doublecol-new",
+    "latexClass": "doublecol-new",
+    "dependencies": [
+      "amsmath.sty",
+      "amssymb.sty",
+      "bm.sty",
+      "calc.sty",
+      "color.sty",
+      "dcolumn.sty",
+      "endnotes.sty",
+      "epsf.sty",
+      "lastpage.sty",
+      "latexsym.sty",
+      "leqno.sty",
+      "theorem.sty"
+    ],
+    "label": "Inderscience A4 Journals",
+    "category": "Articles"
+  },
+  {
+    "id": "dtk",
+    "latexClass": "dtk",
+    "dependencies": [],
+    "label": "Die TeXnische Komoedie",
+    "category": "Articles"
+  },
+  {
+    "id": "ectaart",
+    "latexClass": "ectaart",
+    "dependencies": [],
+    "label": "Econometrica",
+    "category": "Articles"
+  },
+  {
+    "id": "egs",
+    "latexClass": "egs",
+    "dependencies": [],
+    "label": "egs",
+    "category": "Articles"
+  },
+  {
+    "id": "elsart",
+    "latexClass": "elsart",
+    "dependencies": [
+      "amssymb.sty",
+      "latexsym.sty"
+    ],
+    "label": "Elsevier (Obsolete Version)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "elsarticle",
+    "latexClass": "elsarticle",
+    "dependencies": [
+      "natbib.sty",
+      "pifont.sty"
+    ],
+    "label": "Elsevier",
+    "category": "Articles"
+  },
+  {
+    "id": "entcs",
+    "latexClass": "entcs",
+    "dependencies": [
+      "amssymb.sty",
+      "entcsmacro.sty",
+      "hyperref.sty",
+      "ifpdf.sty",
+      "latexsym.sty",
+      "newlfont.sty"
+    ],
+    "label": "Electronic Notes in Theor. Comp. Sc. (ENTCS)",
+    "category": "Articles"
+  },
+  {
+    "id": "europasscv",
+    "latexClass": "europasscv",
+    "dependencies": [
+      "footnote.sty",
+      "tabu.sty",
+      "totpages.sty"
+    ],
+    "label": "Europass CV (2013)",
+    "category": "Curricula Vitae"
+  },
+  {
+    "id": "europecv",
+    "latexClass": "europecv",
+    "dependencies": [
+      "fancyhdr.sty",
+      "longtable.sty",
+      "ucs.sty"
+    ],
+    "label": "Europe CV",
+    "category": "Curricula Vitae"
+  },
+  {
+    "id": "extarticle",
+    "latexClass": "extarticle",
+    "dependencies": [],
+    "label": "Article (Standard Class with Extra Font Sizes)",
+    "category": "Articles"
+  },
+  {
+    "id": "extbook",
+    "latexClass": "extbook",
+    "dependencies": [],
+    "label": "Book (Standard Class with Extra Font Sizes)",
+    "category": "Books"
+  },
+  {
+    "id": "extletter",
+    "latexClass": "extletter",
+    "dependencies": [],
+    "label": "Letter (Standard Class with Extra Font Sizes)",
+    "category": "Letters"
+  },
+  {
+    "id": "extreport",
+    "latexClass": "extreport",
+    "dependencies": [],
+    "label": "Report (Standard Class with Extra Font Sizes)",
+    "category": "Reports"
+  },
+  {
+    "id": "foils",
+    "latexClass": "foils",
+    "dependencies": [],
+    "label": "foils",
+    "category": "Presentations"
+  },
+  {
+    "id": "frletter",
+    "latexClass": "frletter",
+    "dependencies": [],
+    "label": "French Letter (frletter)",
+    "category": "Letters"
+  },
+  {
+    "id": "g-brief",
+    "latexClass": "g-brief",
+    "dependencies": [],
+    "label": "G-Brief (V. 1, Obsolete)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "g-brief2",
+    "latexClass": "g-brief2",
+    "dependencies": [],
+    "label": "G-Brief (V. 2)",
+    "category": "Letters"
+  },
+  {
+    "id": "heb-article",
+    "latexClass": "article",
+    "dependencies": [
+      "theorem.sty"
+    ],
+    "label": "Hebrew Article",
+    "category": "Articles"
+  },
+  {
+    "id": "heb-letter",
+    "latexClass": "letter",
+    "dependencies": [],
+    "label": "Hebrew Letter",
+    "category": "Letters"
+  },
+  {
+    "id": "hollywood",
+    "latexClass": "hollywood",
+    "dependencies": [
+      "calc.sty",
+      "fancyhdr.sty",
+      "ulem.sty"
+    ],
+    "label": "Hollywood",
+    "category": "Scripts"
+  },
+  {
+    "id": "IEEEtran",
+    "latexClass": "IEEEtran",
+    "dependencies": [],
+    "label": "IEEEtran",
+    "category": "Articles"
+  },
+  {
+    "id": "IEEEtran-CompSoc",
+    "latexClass": "IEEEtran",
+    "dependencies": [],
+    "label": "IEEE Transactions Computer Society",
+    "category": "Articles"
+  },
+  {
+    "id": "IEEEtran-TransMag",
+    "latexClass": "IEEEtran",
+    "dependencies": [],
+    "label": "IEEE Transactions on Magnetics",
+    "category": "Articles"
+  },
+  {
+    "id": "ijmpc",
+    "latexClass": "ws-ijmpc",
+    "dependencies": [
+      "amsmath.sty",
+      "amssymb.sty",
+      "rotating.sty"
+    ],
+    "label": "Int. Journal of Modern Physics C",
+    "category": "Articles"
+  },
+  {
+    "id": "ijmpd",
+    "latexClass": "ws-ijmpd",
+    "dependencies": [
+      "amsmath.sty",
+      "amssymb.sty",
+      "rotating.sty"
+    ],
+    "label": "Int. Journal of Modern Physics D",
+    "category": "Articles"
+  },
+  {
+    "id": "iopart",
+    "latexClass": "iopart",
+    "dependencies": [
+      "amsmath.sty",
+      "amssymb.sty",
+      "iopams.sty",
+      "setstack.sty"
+    ],
+    "label": "Institute of Physics (IOP)",
+    "category": "Articles"
+  },
+  {
+    "id": "isprs",
+    "latexClass": "isprs",
+    "dependencies": [
+      "epsfig.sty",
+      "times.sty"
+    ],
+    "label": "Int. Society f. Photogrammetry and Remote Sensing (ISPRS)",
+    "category": "Articles"
+  },
+  {
+    "id": "iucr",
+    "latexClass": "iucr",
+    "dependencies": [
+      "float.sty",
+      "harvard.sty",
+      "html.sty",
+      "multicol.sty",
+      "tabularx.sty"
+    ],
+    "label": "International Union of Crystallography (IUCr)",
+    "category": "Articles"
+  },
+  {
+    "id": "jarticle",
+    "latexClass": "jarticle",
+    "dependencies": [],
+    "label": "Japanese Article (Standard Class)",
+    "category": "Articles"
+  },
+  {
+    "id": "jasatex",
+    "latexClass": "jasatex",
+    "dependencies": [],
+    "label": "Journal of the Acoustical Society of America (JASA)",
+    "category": "Articles"
+  },
+  {
+    "id": "jbook",
+    "latexClass": "jbook",
+    "dependencies": [],
+    "label": "Japanese Book (Standard Class)",
+    "category": "Books"
+  },
+  {
+    "id": "jgrga",
+    "latexClass": "aguplus",
+    "dependencies": [
+      "jgrga.sty"
+    ],
+    "label": "American Geophysical Union (AGUPLUS JGR)",
+    "category": "Articles"
+  },
+  {
+    "id": "jlreq-article",
+    "latexClass": "jlreq",
+    "dependencies": [
+      "l3keys2e.sty",
+      "lmodern.sty",
+      "everyhook.sty",
+      "luatexja.sty",
+      "luatexja-adjust.sty"
+    ],
+    "label": "Japanese Article (JLReq Class)",
+    "category": "Articles"
+  },
+  {
+    "id": "jlreq-book",
+    "latexClass": "jlreq",
+    "dependencies": [
+      "l3keys2e.sty",
+      "lmodern.sty",
+      "everyhook.sty",
+      "luatexja.sty",
+      "luatexja-adjust.sty"
+    ],
+    "label": "Japanese Book (JLReq Class)",
+    "category": "Books"
+  },
+  {
+    "id": "jlreq-report",
+    "latexClass": "jlreq",
+    "dependencies": [
+      "l3keys2e.sty",
+      "lmodern.sty",
+      "everyhook.sty",
+      "luatexja.sty",
+      "luatexja-adjust.sty"
+    ],
+    "label": "Japanese Report (JLReq Class)",
+    "category": "Reports"
+  },
+  {
+    "id": "jreport",
+    "latexClass": "jreport",
+    "dependencies": [],
+    "label": "Japanese Report (Standard Class)",
+    "category": "Reports"
+  },
+  {
+    "id": "jsarticle",
+    "latexClass": "jsarticle",
+    "dependencies": [],
+    "label": "jsarticle",
+    "category": "Articles"
+  },
+  {
+    "id": "jsbook",
+    "latexClass": "jsbook",
+    "dependencies": [],
+    "label": "jsbook",
+    "category": "Books"
+  },
+  {
+    "id": "jss",
+    "latexClass": "jss",
+    "dependencies": [
+      "ae.sty",
+      "color.sty",
+      "fancyvrb.sty",
+      "hyperref.sty",
+      "natbib.sty",
+      "upquote.sty"
+    ],
+    "label": "Journal of Statistical Software (JSS) version 2",
+    "category": "Articles"
+  },
+  {
+    "id": "kluwer",
+    "latexClass": "kluwer",
+    "dependencies": [],
+    "label": "Kluwer",
+    "category": "Articles"
+  },
+  {
+    "id": "latex8",
+    "latexClass": "article",
+    "dependencies": [
+      "latex8.sty",
+      "times.sty"
+    ],
+    "label": "Latex8 Article (Obsolete)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "letter",
+    "latexClass": "letter",
+    "dependencies": [],
+    "label": "letter",
+    "category": "Letters"
+  },
+  {
+    "id": "lettre",
+    "latexClass": "lettre",
+    "dependencies": [],
+    "label": "lettre",
+    "category": "Letters"
+  },
+  {
+    "id": "llncs",
+    "latexClass": "llncs",
+    "dependencies": [
+      "aliascnt.sty",
+      "multicol.sty"
+    ],
+    "label": "Lecture Notes in Comp. Science (LNCS)",
+    "category": "Articles"
+  },
+  {
+    "id": "ltjarticle",
+    "latexClass": "ltjarticle",
+    "dependencies": [],
+    "label": "ltjarticle",
+    "category": "Articles"
+  },
+  {
+    "id": "ltjbook",
+    "latexClass": "ltjbook",
+    "dependencies": [],
+    "label": "ltjbook",
+    "category": "Books"
+  },
+  {
+    "id": "ltjreport",
+    "latexClass": "ltjreport",
+    "dependencies": [],
+    "label": "ltjreport",
+    "category": "Reports"
+  },
+  {
+    "id": "ltjsarticle",
+    "latexClass": "ltjsarticle",
+    "dependencies": [],
+    "label": "ltjsarticle",
+    "category": "Articles"
+  },
+  {
+    "id": "ltjsbook",
+    "latexClass": "ltjsbook",
+    "dependencies": [],
+    "label": "ltjsbook",
+    "category": "Books"
+  },
+  {
+    "id": "ltjsreport",
+    "latexClass": "ltjsreport",
+    "dependencies": [],
+    "label": "ltjsreport",
+    "category": "Reports"
+  },
+  {
+    "id": "ltjtarticle",
+    "latexClass": "ltjtarticle",
+    "dependencies": [],
+    "label": "ltjtarticle",
+    "category": "Articles"
+  },
+  {
+    "id": "ltjtbook",
+    "latexClass": "ltjtbook",
+    "dependencies": [],
+    "label": "ltjtbook",
+    "category": "Books"
+  },
+  {
+    "id": "ltjtreport",
+    "latexClass": "ltjtreport",
+    "dependencies": [],
+    "label": "ltjtreport",
+    "category": "Reports"
+  },
+  {
+    "id": "ltugboat",
+    "latexClass": "ltugboat",
+    "dependencies": [],
+    "label": "ltugboat",
+    "category": "Articles"
+  },
+  {
+    "id": "maa-monthly",
+    "latexClass": "article",
+    "dependencies": [
+      "maa-monthly.sty"
+    ],
+    "label": "Mathematical Monthly article",
+    "category": "Articles"
+  },
+  {
+    "id": "memoir",
+    "latexClass": "memoir",
+    "dependencies": [],
+    "label": "Memoir",
+    "category": "Books"
+  },
+  {
+    "id": "moderncv",
+    "latexClass": "moderncv",
+    "dependencies": [
+      "ebgaramond.sty",
+      "fancyhdr.sty",
+      "fontawesome.sty",
+      "ifpdf.sty",
+      "marvosym.sty"
+    ],
+    "label": "Modern CV",
+    "category": "Curricula Vitae"
+  },
+  {
+    "id": "mwart",
+    "latexClass": "mwart",
+    "dependencies": [],
+    "label": "Polish Article (MW Bundle)",
+    "category": "Articles"
+  },
+  {
+    "id": "mwbk",
+    "latexClass": "mwbk",
+    "dependencies": [],
+    "label": "Polish Book (MW Bundle)",
+    "category": "Books"
+  },
+  {
+    "id": "mwrep",
+    "latexClass": "mwrep",
+    "dependencies": [],
+    "label": "Polish Report (MW Bundle)",
+    "category": "Reports"
+  },
+  {
+    "id": "paper",
+    "latexClass": "paper",
+    "dependencies": [],
+    "label": "paper",
+    "category": "Articles"
+  },
+  {
+    "id": "powerdot",
+    "latexClass": "powerdot",
+    "dependencies": [
+      "enumitem.sty",
+      "hyperref.sty",
+      "pstricks.sty",
+      "pst-grad.sty",
+      "verbatim.sty",
+      "xcolor.sty",
+      "xkeyval.sty"
+    ],
+    "label": "Powerdot",
+    "category": "Presentations"
+  },
+  {
+    "id": "recipebook",
+    "latexClass": "scrbook",
+    "dependencies": [],
+    "label": "Recipe Book",
+    "category": "Books"
+  },
+  {
+    "id": "report",
+    "latexClass": "report",
+    "dependencies": [],
+    "label": "report",
+    "category": "Reports"
+  },
+  {
+    "id": "revtex",
+    "latexClass": "revtex",
+    "dependencies": [
+      "revtex.sty"
+    ],
+    "label": "REVTeX (Obsolete Version)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "revtex4",
+    "latexClass": "revtex4",
+    "dependencies": [
+      "natbib.sty",
+      "revsymb.sty"
+    ],
+    "label": "REVTeX (V. 4)",
+    "category": "Articles"
+  },
+  {
+    "id": "revtex4-1",
+    "latexClass": "revtex4-1",
+    "dependencies": [
+      "natbib.sty",
+      "revsymb4-1.sty",
+      "textcase.sty",
+      "url.sty"
+    ],
+    "label": "REVTeX (V. 4.1)",
+    "category": "Articles"
+  },
+  {
+    "id": "revtex4-2",
+    "latexClass": "revtex4-2",
+    "dependencies": [
+      "natbib.sty",
+      "revsymb4-2.sty",
+      "textcase.sty",
+      "url.sty"
+    ],
+    "label": "REVTeX (V. 4.2)",
+    "category": "Articles"
+  },
+  {
+    "id": "RJournal",
+    "latexClass": "report",
+    "dependencies": [
+      "RJournal.sty",
+      "booktabs.sty",
+      "natbib.sty"
+    ],
+    "label": "R Journal",
+    "category": "Reports"
+  },
+  {
+    "id": "sciposter",
+    "latexClass": "sciposter",
+    "dependencies": [
+      "sectionbox.sty",
+      "wallpaper.sty"
+    ],
+    "label": "SciPoster",
+    "category": "Posters"
+  },
+  {
+    "id": "scrartcl",
+    "latexClass": "scrartcl",
+    "dependencies": [],
+    "label": "scrartcl",
+    "category": "Articles"
+  },
+  {
+    "id": "scrarticle-beamer",
+    "latexClass": "scrartcl",
+    "dependencies": [
+      "beamerarticle.sty",
+      "keyval.sty",
+      "pgf.sty"
+    ],
+    "label": "Beamer Article (KOMA-Script)",
+    "category": "Articles"
+  },
+  {
+    "id": "scrbook",
+    "latexClass": "scrbook",
+    "dependencies": [],
+    "label": "scrbook",
+    "category": "Books"
+  },
+  {
+    "id": "scrlettr",
+    "latexClass": "scrlettr",
+    "dependencies": [],
+    "label": "scrlettr",
+    "category": "Obsolete"
+  },
+  {
+    "id": "scrlttr2",
+    "latexClass": "scrlttr2",
+    "dependencies": [],
+    "label": "scrlttr2",
+    "category": "Letters"
+  },
+  {
+    "id": "scrreprt",
+    "latexClass": "scrreprt",
+    "dependencies": [],
+    "label": "scrreprt",
+    "category": "Reports"
+  },
+  {
+    "id": "seminar",
+    "latexClass": "seminar",
+    "dependencies": [
+      "sem-page.sty"
+    ],
+    "label": "Seminar",
+    "category": "Presentations"
+  },
+  {
+    "id": "siamltex",
+    "latexClass": "siamltex",
+    "dependencies": [],
+    "label": "siamltex",
+    "category": "Articles"
+  },
+  {
+    "id": "sigplanconf",
+    "latexClass": "sigplanconf",
+    "dependencies": [
+      "natbib.sty"
+    ],
+    "label": "ACM SIGPLAN (Obsolete)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "simplecv",
+    "latexClass": "simplecv",
+    "dependencies": [],
+    "label": "simplecv",
+    "category": "Curricula Vitae"
+  },
+  {
+    "id": "singlecol",
+    "latexClass": "singlecol",
+    "dependencies": [
+      "natbib.sty"
+    ],
+    "label": "Inderscience Journals (Obsolete)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "singlecol-new",
+    "latexClass": "singlecol-new",
+    "dependencies": [
+      "amsmath.sty",
+      "amssymb.sty",
+      "bm.sty",
+      "calc.sty",
+      "color.sty",
+      "dcolumn.sty",
+      "endnotes.sty",
+      "epsf.sty",
+      "lastpage.sty",
+      "latexsym.sty",
+      "leqno.sty",
+      "theorem.sty"
+    ],
+    "label": "Inderscience 9.5 x 6.5 Journals",
+    "category": "Articles"
+  },
+  {
+    "id": "slides",
+    "latexClass": "slides",
+    "dependencies": [],
+    "label": "slides",
+    "category": "Presentations"
+  },
+  {
+    "id": "spie",
+    "latexClass": "spie",
+    "dependencies": [
+      "cite.sty"
+    ],
+    "label": "SPIE Proceedings",
+    "category": "Articles"
+  },
+  {
+    "id": "svglobal",
+    "latexClass": "svjour",
+    "dependencies": [
+      "svglobal.clo"
+    ],
+    "label": "Springer's Global Journal Template (Obsolete Version)",
+    "category": "Obsolete"
+  },
+  {
+    "id": "svglobal3",
+    "latexClass": "svjour3",
+    "dependencies": [
+      "svglov3.clo",
+      "natbib.sty"
+    ],
+    "label": "Springer's Global Journal Template (V. 3)",
+    "category": "Articles"
+  },
+  {
+    "id": "svjog",
+    "latexClass": "svjour",
+    "dependencies": [
+      "svjog.clo",
+      "natbib.sty"
+    ],
+    "label": "Journal of Geodesy (Springer)",
+    "category": "Articles"
+  },
+  {
+    "id": "svmono",
+    "latexClass": "svmono",
+    "dependencies": [],
+    "label": "Springer Monographs (svmono)",
+    "category": "Books"
+  },
+  {
+    "id": "svmult",
+    "latexClass": "svmult",
+    "dependencies": [
+      "natbib.sty"
+    ],
+    "label": "Springer Contributed Books (svmult)",
+    "category": "Books"
+  },
+  {
+    "id": "svprobth",
+    "latexClass": "svjour",
+    "dependencies": [
+      "svprobth.clo"
+    ],
+    "label": "Probability Theory and Related Fields (Springer svprobth)",
+    "category": "Articles"
+  },
+  {
+    "id": "tarticle",
+    "latexClass": "tarticle",
+    "dependencies": [
+      "plext.sty"
+    ],
+    "label": "Japanese Article (Standard Class, vertical Writing)",
+    "category": "Articles"
+  },
+  {
+    "id": "tbook",
+    "latexClass": "tbook",
+    "dependencies": [
+      "plext.sty"
+    ],
+    "label": "Japanese Book (Standard Class, vertical Writing)",
+    "category": "Books"
+  },
+  {
+    "id": "treport",
+    "latexClass": "treport",
+    "dependencies": [
+      "plext.sty"
+    ],
+    "label": "Japanese Report (Standard Class, vertical Writing)",
+    "category": "Reports"
+  },
+  {
+    "id": "tufte-book",
+    "latexClass": "tufte-book",
+    "dependencies": [],
+    "label": "Tufte Book",
+    "category": "Books"
+  },
+  {
+    "id": "tufte-handout",
+    "latexClass": "tufte-handout",
+    "dependencies": [],
+    "label": "Tufte Handout",
+    "category": "Handouts"
+  }
+]

@@ -39,6 +39,26 @@ describe("canonical document foundation", () => {
     expect("tiptap" in normalized).toBe(false);
   });
 
+  it("normalizes unsupported built-in LyX document classes to a PDF-renderable fallback", () => {
+    const result = validateCanonicalDocument({
+      ...restorationFoundationFixture,
+      settings: {
+        ...restorationFoundationFixture.settings,
+        documentClass: "acmart",
+        template: "lyx-acmart",
+        templateFamily: "Articles",
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(result.errors.join("\n"));
+    }
+    expect(result.document.settings.documentClass).toBe("article");
+    expect(result.document.settings.template).toBe("lyx-article");
+    expect(result.document.settings.templateFamily).toBe("Articles");
+  });
+
   it("validates persisted document workspace tabs as canonical metadata", () => {
     const result = validateCanonicalDocument({
       ...restorationFoundationFixture,
@@ -152,6 +172,55 @@ describe("canonical document foundation", () => {
     expect(JSON.stringify(result.document)).toContain("comment-reading");
     expect(JSON.stringify(result.document)).toContain("lower-alpha");
     expect(JSON.stringify(result.document)).toContain("page_footer");
+  });
+
+  it("validates tracked-change metadata and author attribution", () => {
+    const result = validateCanonicalDocument({
+      ...restorationFoundationFixture,
+      metadata: {
+        ...restorationFoundationFixture.metadata,
+        changeTracking: {
+          currentAuthorId: "author-alex-reviewer",
+          authors: [{ id: "author-alex-reviewer", name: "Alex Reviewer" }],
+        },
+      },
+      blocks: restorationFoundationFixture.blocks.map((block) => (
+        block.id === "block-intro" && block.type === "paragraph"
+          ? {
+              ...block,
+              children: [
+                { type: "text", text: "Let " },
+                {
+                  type: "tracked_insert",
+                  id: "change-insert",
+                  authorId: "author-alex-reviewer",
+                  authorName: "Alex Reviewer",
+                  createdAt: "2026-04-26T00:00:00.000Z",
+                  text: "carefully ",
+                },
+                { type: "text", text: "v denote " },
+                {
+                  type: "tracked_delete",
+                  id: "change-delete",
+                  authorId: "author-alex-reviewer",
+                  authorName: "Alex Reviewer",
+                  createdAt: "2026-04-26T00:00:00.000Z",
+                  text: "velocity",
+                },
+                { type: "text", text: "." },
+              ],
+            }
+          : block
+      )),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(result.errors.join("\n"));
+    }
+    expect(result.document.metadata.changeTracking?.currentAuthorId).toBe("author-alex-reviewer");
+    expect(JSON.stringify(result.document)).toContain("tracked_insert");
+    expect(JSON.stringify(result.document)).toContain("tracked_delete");
   });
 
   it("validates Gate 4 LyX document settings, labels, citations, includes, and semantic insets", () => {

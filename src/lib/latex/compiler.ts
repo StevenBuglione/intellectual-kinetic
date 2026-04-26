@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { CanonicalDocument } from "@/lib/editor-core/types";
+import { getLyxDocumentClassEntry } from "@/lib/lyx/document-classes";
 import { pageLayoutContract } from "@/lib/layout/page-layout-contract";
 import type { LatexDiagnostic } from "./serializer";
 import { serializeCanonicalDocumentToLatex } from "./serializer";
@@ -25,8 +26,42 @@ export type LatexCompileResult = {
 export async function compileCanonicalDocumentToPdf(
   document: CanonicalDocument,
 ): Promise<LatexCompileResult> {
+  const documentClass = getLyxDocumentClassEntry(document.settings.documentClass);
   const serialized = serializeCanonicalDocumentToLatex(document);
   const artifactName = `${document.id}-preview.pdf`;
+
+  if (documentClass?.previewSupport === "unsupported") {
+    return {
+      status: "failed",
+      artifactName,
+      log: documentClass.previewSupportMessage,
+      diagnostics: [
+        ...serialized.diagnostics,
+        {
+          severity: "error",
+          code: "docbook-preview-unsupported",
+          message: documentClass.previewSupportMessage,
+        },
+      ],
+    };
+  }
+
+  if (documentClass?.previewSupport === "source-only") {
+    return {
+      status: "failed",
+      artifactName,
+      log: documentClass.previewSupportMessage,
+      diagnostics: [
+        ...serialized.diagnostics,
+        {
+          severity: "error",
+          code: "document-class-preview-unavailable",
+          message: documentClass.previewSupportMessage,
+        },
+      ],
+    };
+  }
+
   const workingDirectory = await mkdtemp(path.join(tmpdir(), "ik-latex-"));
   const texFile = path.join(workingDirectory, "main.tex");
 

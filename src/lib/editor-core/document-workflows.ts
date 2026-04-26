@@ -1,10 +1,16 @@
 import { canonicalDocumentToEditorText } from "./plaintext";
-import type { CanonicalBlock, CanonicalDocument, CanonicalInline } from "./types";
+import type {
+  CanonicalBlock,
+  CanonicalDocument,
+  CanonicalInline,
+  ChangeTrackingAuthor,
+} from "./types";
 
 export type ReplaceAllOptions = {
   find: string;
   replaceWith: string;
   matchCase?: boolean;
+  transformReplacement?: (matchedText: string) => string;
 };
 
 export type ReplaceAllResult = {
@@ -31,6 +37,18 @@ export type PasteSpecialInput = {
   source: string;
 };
 
+export type TrackedChangeKind = "tracked_insert" | "tracked_delete";
+
+export type TrackedChangeSummary = {
+  id: string;
+  kind: TrackedChangeKind;
+  blockId: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  text: string;
+};
+
 export function replaceAllInCanonicalDocument(
   document: CanonicalDocument,
   options: ReplaceAllOptions,
@@ -41,12 +59,15 @@ export function replaceAllInCanonicalDocument(
 
   const matcher = new RegExp(escapeRegExp(options.find), options.matchCase ? "g" : "gi");
   const counter = { value: 0 };
-  const replaceText = (value: string) => value.replace(matcher, () => {
+  const replacementForMatch = (matchedText: string) => options.transformReplacement?.(matchedText) ?? options.replaceWith;
+  const replaceText = (value: string) => value.replace(matcher, (matchedText) => {
     counter.value += 1;
-    return options.replaceWith;
+    return replacementForMatch(matchedText);
   });
 
-  const blocks = document.blocks.map((block) => replaceInBlock(block, replaceText, matcher, options.replaceWith, counter));
+  const blocks = document.blocks.map((block) => (
+    replaceInBlock(block, replaceText, matcher, replacementForMatch, counter)
+  ));
 
   return {
     document: {
@@ -94,17 +115,128 @@ export function pasteSpecialToCanonicalBlocks(input: PasteSpecialInput): Canonic
   return plainTextToParagraphs(input.source);
 }
 
+export function ensureChangeTrackingAuthor(
+  document: CanonicalDocument,
+  authorName: string,
+): { document: CanonicalDocument; author: ChangeTrackingAuthor } {
+  const normalizedName = authorName.trim() || "Editor";
+  const normalizedId = `author-${slugifyReviewAuthor(normalizedName)}`;
+  const existingAuthors = document.metadata.changeTracking?.authors ?? [{ id: "author-editor", name: "Editor" }];
+  const existingAuthor = existingAuthors.find((author) => author.id === normalizedId || author.name === normalizedName);
+  const author = existingAuthor ?? { id: normalizedId, name: normalizedName };
+  const authors = existingAuthor ? existingAuthors : [...existingAuthors, author];
+
+  return {
+    author,
+    document: {
+      ...document,
+      metadata: {
+        ...document.metadata,
+        changeTracking: {
+          currentAuthorId: author.id,
+          authors,
+        },
+      },
+    },
+  };
+}
+
+export function listTrackedChanges(document: CanonicalDocument): TrackedChangeSummary[] {
+  return document.blocks.flatMap((block) => listTrackedChangesInBlock(block));
+}
+
+export function trackBlockInsertion(
+  document: CanonicalDocument,
+  options: {
+    blockId: string;
+    insertAfterText: string;
+    text: string;
+    authorId: string;
+    authorName: string;
+    createdAt?: string;
+  },
+): CanonicalDocument {
+  if (!options.text.trim()) {
+    return document;
+  }
+
+  const createdAt = options.createdAt ?? new Date().toISOString();
+  const nextBlocks = document.blocks.map((block) => (
+    updateBlockChildren(block, options.blockId, (children) => insertTrackedChange(children, {
+      kind: "tracked_insert",
+      text: options.text,
+      insertAfterText: options.insertAfterText,
+      authorId: options.authorId,
+      authorName: options.authorName,
+      createdAt,
+    }))
+  ));
+
+  if (JSON.stringify(nextBlocks) === JSON.stringify(document.blocks)) {
+    return document;
+  }
+
+  return {
+    ...document,
+    blocks: nextBlocks,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function trackBlockDeletion(
+  document: CanonicalDocument,
+  options: {
+    blockId: string;
+    text: string;
+    authorId: string;
+    authorName: string;
+    createdAt?: string;
+  },
+): CanonicalDocument {
+  if (!options.text.trim()) {
+    return document;
+  }
+
+  const createdAt = options.createdAt ?? new Date().toISOString();
+  const nextBlocks = document.blocks.map((block) => (
+    updateBlockChildren(block, options.blockId, (children) => replaceTextWithTrackedDeletion(children, {
+      text: options.text,
+      authorId: options.authorId,
+      authorName: options.authorName,
+      createdAt,
+    }))
+  ));
+
+  if (JSON.stringify(nextBlocks) === JSON.stringify(document.blocks)) {
+    return document;
+  }
+
+  return {
+    ...document,
+    blocks: nextBlocks,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function acceptTrackedChange(document: CanonicalDocument, changeId: string): CanonicalDocument {
+  return resolveTrackedChange(document, changeId, "accept");
+}
+
+export function rejectTrackedChange(document: CanonicalDocument, changeId: string): CanonicalDocument {
+  return resolveTrackedChange(document, changeId, "reject");
+}
+
 function replaceInBlock(
   block: CanonicalBlock,
   replaceText: (value: string) => string,
   matcher: RegExp,
-  replaceWith: string,
+  replacementForMatch: (matchedText: string) => string,
   counter: { value: number },
 ): CanonicalBlock {
   if ("children" in block) {
     return {
       ...block,
-      children: replaceInInlines(block.children, replaceText, matcher, replaceWith, counter),
+      children: replaceInInlines(block.children, replaceText, matcher, replacementForMatch, counter),
     };
   }
 
@@ -118,12 +250,14 @@ function replaceInBlock(
   if (block.type === "table") {
     return {
       ...block,
-      caption: block.caption ? replaceInInlines(block.caption, replaceText, matcher, replaceWith, counter) : undefined,
+      caption: block.caption
+        ? replaceInInlines(block.caption, replaceText, matcher, replacementForMatch, counter)
+        : undefined,
       rows: block.rows.map((row) => ({
         ...row,
         cells: row.cells.map((cell) => ({
           ...cell,
-          children: replaceInInlines(cell.children, replaceText, matcher, replaceWith, counter),
+          children: replaceInInlines(cell.children, replaceText, matcher, replacementForMatch, counter),
         })),
       })),
     };
@@ -133,7 +267,9 @@ function replaceInBlock(
     return {
       ...block,
       altText: replaceText(block.altText),
-      caption: block.caption ? replaceInInlines(block.caption, replaceText, matcher, replaceWith, counter) : undefined,
+      caption: block.caption
+        ? replaceInInlines(block.caption, replaceText, matcher, replacementForMatch, counter)
+        : undefined,
     };
   }
 
@@ -152,7 +288,7 @@ function replaceInBlock(
       ...block,
       title: replaceText(block.title),
       resolvedBlocks: block.resolvedBlocks?.map((resolvedBlock) => (
-        replaceInBlock(resolvedBlock, replaceText, matcher, replaceWith, counter)
+        replaceInBlock(resolvedBlock, replaceText, matcher, replacementForMatch, counter)
       )),
     };
   }
@@ -161,7 +297,9 @@ function replaceInBlock(
     return {
       ...block,
       branchName: replaceText(block.branchName),
-      blocks: block.blocks.map((branchBlock) => replaceInBlock(branchBlock, replaceText, matcher, replaceWith, counter)),
+      blocks: block.blocks.map((branchBlock) => (
+        replaceInBlock(branchBlock, replaceText, matcher, replacementForMatch, counter)
+      )),
     };
   }
 
@@ -184,7 +322,7 @@ function replaceInInlines(
   children: CanonicalInline[],
   replaceText: (value: string) => string,
   matcher: RegExp,
-  replaceWith: string,
+  replacementForMatch: (matchedText: string) => string,
   counter: { value: number },
 ): CanonicalInline[] {
   const joined = children.map(inlineSearchText).join("");
@@ -199,7 +337,7 @@ function replaceInInlines(
       const start = match.index ?? 0;
       const end = start + match[0].length;
       nextChildren.push(...sliceInlineRanges(ranges, cursor, start));
-      nextChildren.push({ type: "text", text: replaceWith });
+      nextChildren.push({ type: "text", text: replacementForMatch(match[0]) });
       counter.value += 1;
       cursor = end;
     }
@@ -218,7 +356,17 @@ function replaceInInlines(
     }
 
     if (child.type === "footnote" || child.type === "language_span" || child.type === "comment") {
-      return { ...child, children: replaceInInlines(child.children, replaceText, matcher, replaceWith, counter) };
+      return {
+        ...child,
+        children: replaceInInlines(child.children, replaceText, matcher, replacementForMatch, counter),
+      };
+    }
+
+    if (child.type === "tracked_insert" || child.type === "tracked_delete") {
+      return {
+        ...child,
+        text: replaceText(child.text),
+      };
     }
 
     if (child.type === "glossary_entry") {
@@ -324,6 +472,10 @@ function inlineSearchText(child: CanonicalInline): string {
 
   if (child.type === "footnote" || child.type === "language_span" || child.type === "comment") {
     return child.children.map(inlineSearchText).join("");
+  }
+
+  if (child.type === "tracked_insert" || child.type === "tracked_delete") {
+    return child.text;
   }
 
   return "";
@@ -471,4 +623,214 @@ function workflowId(prefix: string, index: number): string {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function updateBlockChildren(
+  block: CanonicalBlock,
+  blockId: string,
+  updater: (children: CanonicalInline[]) => CanonicalInline[],
+): CanonicalBlock {
+  if ("children" in block) {
+    if (block.id !== blockId) {
+      return block;
+    }
+
+    return {
+      ...block,
+      children: mergeAdjacentTextInlines(updater(block.children)),
+      reviewState: "needs_review",
+    };
+  }
+
+  return block;
+}
+
+function insertTrackedChange(
+  children: CanonicalInline[],
+  options: {
+    kind: TrackedChangeKind;
+    text: string;
+    insertAfterText: string;
+    authorId: string;
+    authorName: string;
+    createdAt: string;
+  },
+): CanonicalInline[] {
+  const joined = children.map(inlineSearchText).join("");
+  const anchor = options.insertAfterText;
+  const insertionIndex = anchor.length === 0 ? joined.length : joined.indexOf(anchor);
+  if (insertionIndex < 0) {
+    return children;
+  }
+
+  const insertAt = anchor.length === 0 ? joined.length : insertionIndex + anchor.length;
+  const ranges = inlineRanges(children);
+  const trackedInline = createTrackedChangeInline(options.kind, options.text, options.authorId, options.authorName, options.createdAt);
+  return mergeAdjacentTextInlines([
+    ...sliceInlineRanges(ranges, 0, insertAt),
+    trackedInline,
+    ...sliceInlineRanges(ranges, insertAt, joined.length),
+  ]);
+}
+
+function replaceTextWithTrackedDeletion(
+  children: CanonicalInline[],
+  options: {
+    text: string;
+    authorId: string;
+    authorName: string;
+    createdAt: string;
+  },
+): CanonicalInline[] {
+  const joined = children.map(inlineSearchText).join("");
+  const start = joined.indexOf(options.text);
+  if (start < 0) {
+    return children;
+  }
+
+  const end = start + options.text.length;
+  const ranges = inlineRanges(children);
+  return mergeAdjacentTextInlines([
+    ...sliceInlineRanges(ranges, 0, start),
+    createTrackedChangeInline("tracked_delete", options.text, options.authorId, options.authorName, options.createdAt),
+    ...sliceInlineRanges(ranges, end, joined.length),
+  ]);
+}
+
+function createTrackedChangeInline(
+  kind: TrackedChangeKind,
+  text: string,
+  authorId: string,
+  authorName: string,
+  createdAt: string,
+): CanonicalInline {
+  return {
+    type: kind,
+    id: crypto.randomUUID(),
+    authorId,
+    authorName,
+    createdAt,
+    text,
+  };
+}
+
+function listTrackedChangesInBlock(block: CanonicalBlock): TrackedChangeSummary[] {
+  if (!("children" in block)) {
+    return [];
+  }
+
+  return block.children.flatMap((child) => {
+    if (child.type === "tracked_insert" || child.type === "tracked_delete") {
+      return [{
+        id: child.id,
+        kind: child.type,
+        blockId: block.id,
+        authorId: child.authorId,
+        authorName: child.authorName,
+        createdAt: child.createdAt,
+        text: child.text,
+      }];
+    }
+
+    if (child.type === "footnote" || child.type === "language_span" || child.type === "comment") {
+      return listTrackedChangesInChildren(block.id, child.children);
+    }
+
+    return [];
+  });
+}
+
+function listTrackedChangesInChildren(blockId: string, children: CanonicalInline[]): TrackedChangeSummary[] {
+  return children.flatMap((child) => {
+    if (child.type === "tracked_insert" || child.type === "tracked_delete") {
+      return [{
+        id: child.id,
+        kind: child.type,
+        blockId,
+        authorId: child.authorId,
+        authorName: child.authorName,
+        createdAt: child.createdAt,
+        text: child.text,
+      }];
+    }
+
+    if (child.type === "footnote" || child.type === "language_span" || child.type === "comment") {
+      return listTrackedChangesInChildren(blockId, child.children);
+    }
+
+    return [];
+  });
+}
+
+function resolveTrackedChange(
+  document: CanonicalDocument,
+  changeId: string,
+  resolution: "accept" | "reject",
+): CanonicalDocument {
+  const nextBlocks = document.blocks.map((block) => resolveTrackedChangeInBlock(block, changeId, resolution));
+  if (JSON.stringify(nextBlocks) === JSON.stringify(document.blocks)) {
+    return document;
+  }
+  return {
+    ...document,
+    blocks: nextBlocks,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function resolveTrackedChangeInBlock(
+  block: CanonicalBlock,
+  changeId: string,
+  resolution: "accept" | "reject",
+): CanonicalBlock {
+  if (!("children" in block)) {
+    return block;
+  }
+
+  return {
+    ...block,
+    children: mergeAdjacentTextInlines(resolveTrackedChangeInChildren(block.children, changeId, resolution)),
+    reviewState: "needs_review",
+  };
+}
+
+function resolveTrackedChangeInChildren(
+  children: CanonicalInline[],
+  changeId: string,
+  resolution: "accept" | "reject",
+): CanonicalInline[] {
+  return children.reduce<CanonicalInline[]>((nextChildren, child) => {
+    if (child.type === "tracked_insert" && child.id === changeId) {
+      if (resolution === "accept") {
+        nextChildren.push({ type: "text", text: child.text });
+      }
+      return nextChildren;
+    }
+
+    if (child.type === "tracked_delete" && child.id === changeId) {
+      if (resolution !== "accept") {
+        nextChildren.push({ type: "text", text: child.text });
+      }
+      return nextChildren;
+    }
+
+    if (child.type === "footnote" || child.type === "language_span" || child.type === "comment") {
+      nextChildren.push({
+        ...child,
+        children: mergeAdjacentTextInlines(resolveTrackedChangeInChildren(child.children, changeId, resolution)),
+      });
+      return nextChildren;
+    }
+
+    nextChildren.push(child);
+    return nextChildren;
+  }, []);
+}
+
+function slugifyReviewAuthor(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "editor";
 }

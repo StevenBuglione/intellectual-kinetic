@@ -7,7 +7,5 @@ export async function POST(request: Request) {
   const body = await request.json();
   const result = await compileCanonicalDocumentToPdf(body.document);
 
-  return NextResponse.json(result, {
-    status: result.status === "compiled" ? 200 : 422,
-  });
+  return NextResponse.json(result);
 }
