@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
+import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import {
   canonicalToTiptapDocument,
@@ -50,5 +51,21 @@ describe("Tiptap projection boundary", () => {
     expect(patch.blocks.map((block) => block.type)).toEqual(gateOneStructureFixture.blocks.map((block) => block.type));
     expect(JSON.stringify(patch.blocks)).toContain("Restoration checks");
     expect(JSON.stringify(patch.blocks)).toContain("fig:source-scan");
+  });
+
+  it("projects Gate 2 scholarly structures through the adapter boundary", () => {
+    const projected = canonicalToTiptapDocument(gateTwoScholarlyFixture);
+    const patch = tiptapDocumentToCanonicalPatch(projected);
+
+    expect(projected.content?.map((node) => node.attrs?.canonicalBlockType ?? node.type)).toEqual([
+      "heading",
+      "abstract",
+      "quote",
+      "paragraph",
+      "bibliography",
+    ]);
+    expect(patch.blocks.map((block) => block.type)).toEqual(gateTwoScholarlyFixture.blocks.map((block) => block.type));
+    expect(JSON.stringify(projected)).toContain("(note: marginal restoration note)");
+    expect(JSON.stringify(projected)).toContain("doe2026");
   });
 });

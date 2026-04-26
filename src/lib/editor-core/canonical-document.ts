@@ -10,7 +10,9 @@ const provenanceSchema = z.object({
   confidence: z.number().min(0).max(1),
 });
 
-const inlineSchema = z.discriminatedUnion("type", [
+type InlineSchema = z.ZodType<import("./types").CanonicalInline>;
+
+const inlineSchema: InlineSchema = z.lazy(() => z.discriminatedUnion("type", [
   z.object({
     type: z.literal("text"),
     text: z.string(),
@@ -19,7 +21,13 @@ const inlineSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("math_inline"), tex: z.string().min(1) }),
   z.object({ type: z.literal("citation"), key: z.string().min(1) }),
   z.object({ type: z.literal("reference"), target: z.string().min(1) }),
-]);
+  z.object({ type: z.literal("footnote"), children: z.array(inlineSchema) }),
+  z.object({
+    type: z.literal("language_span"),
+    language: z.string().min(1),
+    children: z.array(inlineSchema),
+  }),
+]));
 
 const contentBlockBase = {
   id: z.string().min(1),
@@ -94,6 +102,26 @@ const blockSchema = z.discriminatedUnion("type", [
   z.object({
     id: z.string().min(1),
     type: z.literal("page_break"),
+    provenance: provenanceSchema.optional(),
+    reviewState: reviewStateSchema,
+  }),
+  z.object({
+    ...contentBlockBase,
+    type: z.literal("abstract"),
+  }),
+  z.object({
+    ...contentBlockBase,
+    type: z.literal("quote"),
+    quoteKind: z.enum(["quote", "quotation", "verse"]),
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("bibliography"),
+    entries: z.array(z.object({
+      id: z.string().min(1),
+      key: z.string().min(1),
+      text: z.string().min(1),
+    })).min(1),
     provenance: provenanceSchema.optional(),
     reviewState: reviewStateSchema,
   }),

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import {
   canonicalDocumentSchemaVersion,
@@ -88,6 +89,12 @@ describe("canonical document foundation", () => {
         },
       ],
     });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("validates Gate 2 scholarly blocks and inline structures", () => {
+    const result = validateCanonicalDocument(gateTwoScholarlyFixture);
 
     expect(result.ok).toBe(true);
   });

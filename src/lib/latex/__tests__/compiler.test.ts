@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
+import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { canonicalDocumentToEditorText } from "@/lib/editor-core/plaintext";
 import { tiptapDocumentToCanonicalPatch, canonicalToTiptapDocument } from "@/lib/tiptap-adapter/projection";
@@ -56,6 +57,16 @@ describe("LaTeX PDF compiler", () => {
     expect(result.previewImageBase64?.startsWith("iVBOR")).toBe(true);
     expect(normalizePdfParityText(result.extractedText)).toBe(
       normalizePdfParityText(canonicalDocumentToEditorText(gateOneStructureFixture)),
+    );
+  }, 30_000);
+
+  it("compiles Gate 2 scholarly structures into a text-verified rendered preview image", async () => {
+    const result = await compileCanonicalDocumentToPdf(gateTwoScholarlyFixture);
+
+    expect(result.status).toBe("compiled");
+    expect(result.previewImageBase64?.startsWith("iVBOR")).toBe(true);
+    expect(normalizePdfParityText(result.extractedText)).toBe(
+      normalizePdfParityText(canonicalDocumentToEditorText(gateTwoScholarlyFixture)),
     );
   }, 30_000);
 });

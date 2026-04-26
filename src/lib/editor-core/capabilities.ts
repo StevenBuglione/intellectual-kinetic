@@ -4,7 +4,7 @@ export type ParityCapability = {
   id: string;
   family: string;
   status: ParityCapabilityStatus;
-  gate: "gate-1" | "future";
+  gate: "gate-1" | "gate-2" | "future";
   fixtureFamilies: string[];
 };
 
@@ -66,11 +66,39 @@ export const parityCapabilityRegistry: ParityCapability[] = [
     fixtureFamilies: ["gate-one-structure"],
   },
   {
+    id: "abstract-block",
+    family: "document structure and semantic blocks",
+    status: "verified",
+    gate: "gate-2",
+    fixtureFamilies: ["gate-two-scholarly"],
+  },
+  {
+    id: "quotation-verse-blocks",
+    family: "document structure and semantic blocks",
+    status: "verified",
+    gate: "gate-2",
+    fixtureFamilies: ["gate-two-scholarly"],
+  },
+  {
+    id: "footnote-insets",
+    family: "notes and insets",
+    status: "verified",
+    gate: "gate-2",
+    fixtureFamilies: ["gate-two-scholarly"],
+  },
+  {
+    id: "multilingual-language-selection",
+    family: "language, encoding, and multilingual text features",
+    status: "verified",
+    gate: "gate-2",
+    fixtureFamilies: ["gate-two-scholarly"],
+  },
+  {
     id: "bibliography-insert-manage",
     family: "bibliography and citations",
-    status: "partial",
-    gate: "future",
-    fixtureFamilies: [],
+    status: "verified",
+    gate: "gate-2",
+    fixtureFamilies: ["gate-two-scholarly"],
   },
   {
     id: "cjk-and-rtl-support",

@@ -16,12 +16,13 @@ describe("parity capability registry", () => {
       "figure-caption-placeholders",
       "cross-reference-insert",
       "page-breaks-and-flow-breaks",
+      "abstract-block",
+      "quotation-verse-blocks",
+      "footnote-insets",
+      "multilingual-language-selection",
+      "bibliography-insert-manage",
     ]));
 
-    expect(getCapability("bibliography-insert-manage")).toMatchObject({
-      status: "partial",
-      gate: "future",
-    });
     expect(getCapability("cjk-and-rtl-support")).toMatchObject({
       status: "unsupported",
       gate: "future",

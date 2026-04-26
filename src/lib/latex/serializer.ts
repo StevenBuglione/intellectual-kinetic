@@ -66,6 +66,14 @@ function serializeBlock(
     return [serializeInline(block.children, block, labels, diagnostics), ""];
   }
 
+  if (block.type === "abstract") {
+    return [
+      "\\textbf{Abstract}",
+      serializeInline(block.children, block, labels, diagnostics),
+      "",
+    ];
+  }
+
   if (block.type === "theorem") {
     const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
     return [`\\IkTheoremBlock{${label}${serializeInline(block.children, block, labels, diagnostics)}}`, ""];
@@ -108,6 +116,18 @@ function serializeBlock(
     return [`\\IkFigurePlaceholder{${escapeLatex(block.altText)}}{${caption}${label}}`, ""];
   }
 
+  if (block.type === "quote") {
+    return [`\\IkTheoremBlock{${serializeInline(block.children, block, labels, diagnostics)}}`, ""];
+  }
+
+  if (block.type === "bibliography") {
+    return [
+      "\\textbf{References}",
+      ...block.entries.map((entry) => `${escapeLatex(entry.key)} ${escapeLatex(entry.text)}\\\\`),
+      "",
+    ];
+  }
+
   return ["\\newpage", ""];
 }
 
@@ -129,6 +149,14 @@ function serializeInline(
 
       if (child.type === "citation") {
         return `\\texttt{@${escapeLatex(child.key)}}`;
+      }
+
+      if (child.type === "footnote") {
+        return `\\texttt{(note: ${serializeInline(child.children, block, labels, diagnostics)})}`;
+      }
+
+      if (child.type === "language_span") {
+        return serializeInline(child.children, block, labels, diagnostics);
       }
 
       if (!labels.has(child.target)) {

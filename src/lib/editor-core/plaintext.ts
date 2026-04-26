@@ -55,6 +55,14 @@ function canonicalBlockToEditorText(block: CanonicalBlock): string {
     return "";
   }
 
+  if (block.type === "bibliography") {
+    return ["References", ...block.entries.map((entry) => `${entry.key} ${entry.text}`)].join(" ");
+  }
+
+  if (block.type === "abstract") {
+    return `Abstract ${block.children.map(canonicalInlineToEditorText).join("")}`;
+  }
+
   return block.children.map(canonicalInlineToEditorText).join("");
 }
 
@@ -69,6 +77,14 @@ function canonicalInlineToEditorText(child: CanonicalInline): string {
 
   if (child.type === "citation") {
     return `@${child.key}`;
+  }
+
+  if (child.type === "footnote") {
+    return `(note: ${child.children.map(canonicalInlineToEditorText).join("")})`;
+  }
+
+  if (child.type === "language_span") {
+    return child.children.map(canonicalInlineToEditorText).join("");
   }
 
   return `[[${child.target}]]`;

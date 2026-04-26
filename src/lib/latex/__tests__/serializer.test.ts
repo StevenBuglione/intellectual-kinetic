@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
+import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { serializeCanonicalDocumentToLatex } from "../serializer";
 
@@ -52,5 +53,17 @@ describe("deterministic LaTeX serializer", () => {
     expect(result.source).toContain("Check \\hspace{2em} Status");
     expect(result.source).toContain("\\IkFigurePlaceholder{Source scan placeholder}{Source scan placeholder\\label{fig:source-scan}}");
     expect(result.source).toContain("\\newpage");
+  });
+
+  it("serializes Gate 2 scholarly structures into deterministic LaTeX", () => {
+    const result = serializeCanonicalDocumentToLatex(gateTwoScholarlyFixture);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.source).toContain("\\textbf{Abstract}");
+    expect(result.source).toContain("\\texttt{(note: marginal restoration note)}");
+    expect(result.source).toContain("Ars longa, vita brevis, tempus fugit.");
+    expect(result.source).toContain("The edited apparatus cites \\texttt{@doe2026} for traceability.");
+    expect(result.source).toContain("\\textbf{References}");
+    expect(result.source).toContain("doe2026 Doe, Jane. Restoration Methods. 2026.");
   });
 });

@@ -47,6 +47,14 @@ function blockToTiptapNode(block: CanonicalBlock): TiptapNode {
     };
   }
 
+  if (block.type === "abstract") {
+    return {
+      type: "paragraph",
+      attrs: { ...canonicalAttrs, canonicalBlockType: "abstract" },
+      content: inlineToTiptap(block.children),
+    };
+  }
+
   if (block.type === "theorem") {
     return {
       type: "blockquote",
@@ -112,10 +120,36 @@ function blockToTiptapNode(block: CanonicalBlock): TiptapNode {
     };
   }
 
+  if (block.type === "quote") {
+    return {
+      type: "blockquote",
+      attrs: { ...canonicalAttrs, canonicalBlockType: "quote", quoteKind: block.quoteKind },
+      content: [{ type: "paragraph", content: inlineToTiptap(block.children) }],
+    };
+  }
+
   if (block.type === "page_break") {
     return {
       type: "horizontalRule",
       attrs: { ...canonicalAttrs, canonicalBlockType: "page_break" },
+    };
+  }
+
+  if (block.type === "bibliography") {
+    return {
+      type: "blockquote",
+      attrs: {
+        ...canonicalAttrs,
+        canonicalBlockType: "bibliography",
+        bibliographyEntries: block.entries,
+      },
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "References" }] },
+        ...block.entries.map((entry) => ({
+          type: "paragraph",
+          content: [{ type: "text", text: `${entry.key} ${entry.text}` }],
+        })),
+      ],
     };
   }
 
@@ -137,6 +171,14 @@ function inlineToPlainText(child: CanonicalInline): string {
 
   if (child.type === "citation") {
     return `@${child.key}`;
+  }
+
+  if (child.type === "footnote") {
+    return `(note: ${child.children.map(inlineToPlainText).join("")})`;
+  }
+
+  if (child.type === "language_span") {
+    return child.children.map(inlineToPlainText).join("");
   }
 
   return `[[${child.target}]]`;
@@ -165,9 +207,24 @@ function inlineToTiptap(children: CanonicalInline[]): TiptapNode[] {
         text: `@${child.key}`,
         marks: [{ type: "code" }],
       };
-    }
+  }
 
+  if (child.type === "footnote") {
     return {
+      type: "text",
+      text: `(note: ${child.children.map(inlineToPlainText).join("")})`,
+      marks: [{ type: "code" }],
+    };
+  }
+
+  if (child.type === "language_span") {
+    return {
+      type: "text",
+      text: child.children.map(inlineToPlainText).join(""),
+    };
+  }
+
+  return {
       type: "text",
       text: `[[${child.target}]]`,
       marks: [{ type: "code" }],
@@ -212,6 +269,30 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
       };
     }
 
+    if (node.attrs?.canonicalBlockType === "quote") {
+      return {
+        id,
+        type: "quote",
+        quoteKind: node.attrs?.quoteKind === "quote" || node.attrs?.quoteKind === "verse" ? node.attrs.quoteKind : "quotation",
+        children: tiptapInlineToCanonical(node.content?.flatMap((child) => child.content ?? []) ?? []),
+        reviewState,
+      };
+    }
+
+    if (node.attrs?.canonicalBlockType === "bibliography") {
+      const entries = Array.isArray(node.attrs?.bibliographyEntries) ? node.attrs.bibliographyEntries : [];
+      return {
+        id,
+        type: "bibliography",
+        entries: entries.map((entry, index) => ({
+          id: String((entry as { id?: unknown }).id ?? `${id}-entry-${index + 1}`),
+          key: String((entry as { key?: unknown }).key ?? `entry-${index + 1}`),
+          text: String((entry as { text?: unknown }).text ?? ""),
+        })),
+        reviewState,
+      };
+    }
+
     return {
       id,
       type: "theorem",
@@ -223,6 +304,15 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
   }
 
   if (node.type === "paragraph") {
+    if (node.attrs?.canonicalBlockType === "abstract") {
+      return {
+        id,
+        type: "abstract",
+        children: tiptapInlineToCanonical(node.content ?? []),
+        reviewState,
+      };
+    }
+
     return {
       id,
       type: "paragraph",

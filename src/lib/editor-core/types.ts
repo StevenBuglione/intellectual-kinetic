@@ -40,11 +40,24 @@ export type ReferenceInline = {
   target: string;
 };
 
+export type FootnoteInline = {
+  type: "footnote";
+  children: CanonicalInline[];
+};
+
+export type LanguageSpanInline = {
+  type: "language_span";
+  language: string;
+  children: CanonicalInline[];
+};
+
 export type CanonicalInline =
   | TextInline
   | MathInline
   | CitationInline
-  | ReferenceInline;
+  | ReferenceInline
+  | FootnoteInline
+  | LanguageSpanInline;
 
 export type ParagraphBlock = {
   id: string;
@@ -137,6 +150,37 @@ export type PageBreakBlock = {
   reviewState: ReviewState;
 };
 
+export type AbstractBlock = {
+  id: string;
+  type: "abstract";
+  children: CanonicalInline[];
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
+export type QuoteBlock = {
+  id: string;
+  type: "quote";
+  quoteKind: "quote" | "quotation" | "verse";
+  children: CanonicalInline[];
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
+export type BibliographyEntry = {
+  id: string;
+  key: string;
+  text: string;
+};
+
+export type BibliographyBlock = {
+  id: string;
+  type: "bibliography";
+  entries: BibliographyEntry[];
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
 export type CanonicalBlock =
   | ParagraphBlock
   | HeadingBlock
@@ -145,7 +189,10 @@ export type CanonicalBlock =
   | ListBlock
   | TableBlock
   | FigureBlock
-  | PageBreakBlock;
+  | PageBreakBlock
+  | AbstractBlock
+  | QuoteBlock
+  | BibliographyBlock;
 
 export type CanonicalDocument = {
   schemaVersion: 1;
