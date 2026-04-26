@@ -206,11 +206,42 @@ async function main() {
     if (tabTwoSelected !== "true") {
       throw new Error(`New document tab should become selected, got ${tabTwoSelected}.`);
     }
+    await page.getByRole("heading", { name: "Untitled tab 2" }).waitFor({ state: "visible" });
+    if ((await page.locator(".ProseMirror").innerText()).includes("A Treatise on Motion")) {
+      throw new Error("Selecting a new document tab should replace the editor content, but Tab 1 text was still visible.");
+    }
+
+    await leftWorkspace.getByRole("button", { name: "Open paste special" }).click();
+    const tabPastePanel = page.getByRole("complementary", { name: "Paste special" });
+    await tabPastePanel.getByRole("combobox", { name: "Paste format" }).selectOption("latex");
+    await tabPastePanel.getByRole("textbox", { name: "Paste source" }).fill("\\section{Tab Two Section}\nTab two body.");
+    await tabPastePanel.getByRole("button", { name: "Insert paste" }).click();
+    await page.getByRole("heading", { name: "Tab Two Section" }).waitFor({ state: "visible" });
+
     const tabOne = page.getByRole("tab", { name: "Tab 1" });
     await tabOne.click();
     const tabOneSelected = await tabOne.getAttribute("aria-selected");
     if (tabOneSelected !== "true") {
       throw new Error(`Clicking Tab 1 should select it, got ${tabOneSelected}.`);
+    }
+    const tabOneTextAfterSwitch = await page.locator(".ProseMirror").innerText();
+    if (!tabOneTextAfterSwitch.includes("A Treatise on Motion") || tabOneTextAfterSwitch.includes("Tab Two Section")) {
+      throw new Error(`Tab switch did not restore isolated Tab 1 content:\n${tabOneTextAfterSwitch}`);
+    }
+    await tabTwo.click();
+    const tabTwoTextAfterReturn = await page.locator(".ProseMirror").innerText();
+    if (!tabTwoTextAfterReturn.includes("Tab Two Section") || tabTwoTextAfterReturn.includes("A Treatise on Motion")) {
+      throw new Error(`Tab switch did not restore isolated Tab 2 content:\n${tabTwoTextAfterReturn}`);
+    }
+    await page.getByRole("button", { name: "Delete Tab 2" }).click();
+    await tabOne.waitFor({ state: "visible" });
+    const deletedTabCount = await page.getByRole("tab", { name: "Tab 2" }).count();
+    if (deletedTabCount !== 0) {
+      throw new Error(`Deleting Tab 2 should remove it, found ${deletedTabCount}.`);
+    }
+    const deleteOnlyTabDisabled = await page.getByRole("button", { name: "Delete Tab 1" }).isDisabled();
+    if (!deleteOnlyTabDisabled) {
+      throw new Error("The last remaining document tab should not be deletable.");
     }
 
     await leftWorkspace.getByRole("button", { name: "Open document outline" }).click();
@@ -372,7 +403,7 @@ async function main() {
       throw new Error(`Browser console errors were emitted:\n${consoleErrors.join("\n")}`);
     }
 
-    console.log("Editor workflow browser verification passed: collapsible left workspace, document outline navigation, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
+    console.log("Editor workflow browser verification passed: real document tabs, collapsible left workspace, document outline navigation, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
   } finally {
     if (browser) {
       await browser.close();

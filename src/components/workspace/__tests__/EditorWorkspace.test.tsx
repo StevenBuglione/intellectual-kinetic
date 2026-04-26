@@ -292,7 +292,7 @@ describe("EditorWorkspace", () => {
     expect(within(leftWorkspace).getByRole("navigation", { name: "Document outline" })).toBeInTheDocument();
   });
 
-  it("adds and selects document tabs in the left workspace", async () => {
+  it("adds, switches, isolates, and deletes document tabs in the left workspace", async () => {
     render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
 
     const tabList = screen.getByRole("tablist", { name: "Document tabs" });
@@ -300,12 +300,35 @@ describe("EditorWorkspace", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Add document tab" }));
 
-    expect(within(tabList).getByRole("tab", { name: "Tab 2" })).toHaveAttribute("aria-selected", "true");
+    const tabTwo = within(tabList).getByRole("tab", { name: "Tab 2" });
+    expect(tabTwo).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("heading", { level: 1, name: "Untitled tab 2" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "A Treatise on Motion" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Open paste special" }));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Paste format" }), "latex");
+    await userEvent.click(screen.getByRole("textbox", { name: "Paste source" }));
+    await userEvent.paste("\\section{Tab Two Section}\nTab two body.");
+    await userEvent.click(screen.getByRole("button", { name: "Insert paste" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Tab Two Section" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Document outline" })).toHaveTextContent("Tab Two Section");
 
     await userEvent.click(within(tabList).getByRole("tab", { name: "Tab 1" }));
 
     expect(within(tabList).getByRole("tab", { name: "Tab 1" })).toHaveAttribute("aria-selected", "true");
-    expect(within(tabList).getByRole("tab", { name: "Tab 2" })).toHaveAttribute("aria-selected", "false");
+    expect(tabTwo).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("heading", { level: 1, name: "A Treatise on Motion" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Tab Two Section" })).not.toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Document outline" })).not.toHaveTextContent("Tab Two Section");
+
+    await userEvent.click(tabTwo);
+    await userEvent.click(screen.getByRole("button", { name: "Delete Tab 2" }));
+
+    expect(screen.queryByRole("tab", { name: "Tab 2" })).not.toBeInTheDocument();
+    expect(within(tabList).getByRole("tab", { name: "Tab 1" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { level: 1, name: "A Treatise on Motion" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Tab 1" })).toBeDisabled();
   });
 
   it("shows document statistics and imports paste-special content into the canonical editor", async () => {

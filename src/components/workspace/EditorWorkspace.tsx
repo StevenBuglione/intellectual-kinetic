@@ -79,6 +79,7 @@ type DocumentOutlineHeading = {
 type DocumentTab = {
   id: string;
   label: string;
+  blocks: CanonicalDocument["blocks"];
 };
 
 type LeftWorkspacePanel = "outline" | "review" | "statistics" | "paste";
@@ -136,7 +137,11 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [workflowPanel, setWorkflowPanel] = useState<"find" | null>(null);
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
   const [leftPanel, setLeftPanel] = useState<LeftWorkspacePanel>("outline");
-  const [documentTabs, setDocumentTabs] = useState<DocumentTab[]>([{ id: "tab-1", label: "Tab 1" }]);
+  const [documentTabs, setDocumentTabs] = useState<DocumentTab[]>([{
+    id: "tab-1",
+    label: "Tab 1",
+    blocks: initialDocument.blocks,
+  }]);
   const [activeDocumentTabId, setActiveDocumentTabId] = useState("tab-1");
   const [findText, setFindText] = useState("");
   const [replaceText, setReplaceText] = useState("");
@@ -196,10 +201,39 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     const nextTab = {
       id: `tab-${nextTabNumber}`,
       label: `Tab ${nextTabNumber}`,
+      blocks: createEmptyTabBlocks(nextTabNumber),
     };
 
     setDocumentTabs((tabs) => [...tabs, nextTab]);
     setActiveDocumentTabId(nextTab.id);
+    loadDocumentTabBlocks(nextTab.blocks);
+  }
+
+  function selectDocumentTab(tabId: string) {
+    const nextTab = documentTabs.find((tab) => tab.id === tabId);
+    if (!nextTab) {
+      return;
+    }
+
+    setActiveDocumentTabId(tabId);
+    loadDocumentTabBlocks(nextTab.blocks);
+  }
+
+  function deleteDocumentTab(tabId: string) {
+    if (documentTabs.length <= 1) {
+      return;
+    }
+
+    const nextTabs = documentTabs.filter((tab) => tab.id !== tabId);
+    const nextActiveTab = activeDocumentTabId === tabId
+      ? (nextTabs[0] ?? null)
+      : (nextTabs.find((tab) => tab.id === activeDocumentTabId) ?? nextTabs[0] ?? null);
+
+    setDocumentTabs(nextTabs);
+    if (nextActiveTab) {
+      setActiveDocumentTabId(nextActiveTab.id);
+      loadDocumentTabBlocks(nextActiveTab.blocks);
+    }
   }
 
   useEffect(() => {
@@ -285,6 +319,9 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
 
     documentRef.current = nextDocument;
     setDocument(nextDocument);
+    setDocumentTabs((tabs) => tabs.map((tab) => (
+      tab.id === activeDocumentTabId ? { ...tab, blocks: nextDocument.blocks } : tab
+    )));
     setCompiledPreview(null);
     setCompileState("idle");
     return true;
@@ -301,6 +338,9 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     if (response.ok) {
       const payload = (await response.json()) as { document: CanonicalDocument };
       setDocument(payload.document);
+      setDocumentTabs((tabs) => tabs.map((tab) => (
+        tab.id === activeDocumentTabId ? { ...tab, blocks: payload.document.blocks } : tab
+      )));
       setSaveState("saved");
       window.setTimeout(() => setSaveState("idle"), 1600);
     } else {
@@ -311,13 +351,35 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const applyDocumentUpdate = useCallback((nextDocument: CanonicalDocument) => {
     documentRef.current = nextDocument;
     setDocument(nextDocument);
+    setDocumentTabs((tabs) => tabs.map((tab) => (
+      tab.id === activeDocumentTabId ? { ...tab, blocks: nextDocument.blocks } : tab
+    )));
     editor?.commands.setContent(canonicalToTiptapDocument(nextDocument), { emitUpdate: false });
     updateFindHighlights(editor, [], -1);
     setCompiledPreview(null);
     setCompileState("idle");
     setFindCursor(-1);
     setFindStatus(null);
-  }, [editor]);
+  }, [activeDocumentTabId, editor]);
+
+  function loadDocumentTabBlocks(blocks: CanonicalDocument["blocks"]) {
+    const nextDocument = {
+      ...documentRef.current,
+      blocks,
+      updatedAt: new Date().toISOString(),
+    };
+
+    documentRef.current = nextDocument;
+    setDocument(nextDocument);
+    editor?.commands.setContent(canonicalToTiptapDocument(nextDocument), { emitUpdate: false });
+    setEditorMountKey((key) => key + 1);
+    updateFindHighlights(editor, [], -1);
+    setCompiledPreview(null);
+    setCompileState("idle");
+    setFindCursor(-1);
+    setFindStatus(null);
+    setActiveHeadingId(null);
+  }
 
   function selectFindMatch(direction: "next" | "previous" = "next") {
     if (!editor || findText.length === 0) {
@@ -762,17 +824,27 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
                 </div>
                 <div className="ik-doc-tab-list" role="tablist" aria-label="Document tabs">
                   {documentTabs.map((tab) => (
-                    <button
-                      className="ik-doc-tab-active"
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={activeDocumentTabId === tab.id}
-                      onClick={() => setActiveDocumentTabId(tab.id)}
-                    >
-                      <FileText size={16} />
-                      {tab.label}
-                    </button>
+                    <div className="ik-doc-tab-row" key={tab.id}>
+                      <button
+                        className="ik-doc-tab-active"
+                        type="button"
+                        role="tab"
+                        aria-selected={activeDocumentTabId === tab.id}
+                        onClick={() => selectDocumentTab(tab.id)}
+                      >
+                        <FileText size={16} />
+                        {tab.label}
+                      </button>
+                      <button
+                        className="ik-doc-tab-delete"
+                        type="button"
+                        aria-label={`Delete ${tab.label}`}
+                        disabled={documentTabs.length <= 1}
+                        onClick={() => deleteDocumentTab(tab.id)}
+                      >
+                        x
+                      </button>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -1196,6 +1268,24 @@ function inlineTextContent(children: CanonicalInline[]): string {
 
     return "";
   }).join("").trim();
+}
+
+function createEmptyTabBlocks(tabNumber: number): CanonicalDocument["blocks"] {
+  return [
+    {
+      id: `tab-${tabNumber}-title`,
+      type: "heading",
+      level: 1,
+      children: [{ type: "text", text: `Untitled tab ${tabNumber}` }],
+      reviewState: "needs_review",
+    },
+    {
+      id: `tab-${tabNumber}-body`,
+      type: "paragraph",
+      children: [],
+      reviewState: "needs_review",
+    },
+  ];
 }
 
 function findCanonicalElement(canonicalId: string): HTMLElement | null {
