@@ -145,6 +145,17 @@ function renderCanonicalDocumentPageToEditorHtml(
         margin: 0 0 11px;
         font-weight: 700;
       }
+      .ik-doc-semantic-inset {
+        margin: 0 0 ${spacing.paragraphBottomPx}px;
+      }
+      .ik-doc-semantic-inset strong {
+        font-weight: 700;
+      }
+      .ik-doc-include-placeholder {
+        margin: 0 0 ${spacing.paragraphBottomPx}px;
+        font-family: "Courier New", Courier, monospace;
+        font-size: 0.95em;
+      }
     </style>
   </head>
   <body>
@@ -228,6 +239,14 @@ function renderBlock(block: CanonicalBlock): string {
     return `<section><strong class="ik-doc-bibliography-label">References</strong>${block.entries.map((entry) => `<p>${escapeHtml(entry.key)} ${escapeHtml(entry.text)}</p>`).join("")}</section>`;
   }
 
+  if (block.type === "semantic_inset") {
+    return `<p class="ik-doc-semantic-inset"><strong>${escapeHtml(block.insetKind)}:</strong> ${renderInline(block.children)}</p>`;
+  }
+
+  if (block.type === "include") {
+    return `<p class="ik-doc-include-placeholder">Included ${escapeHtml(block.includeKind)} ${escapeHtml(block.title)}</p>`;
+  }
+
   return `<hr class="ik-doc-page-break" />`;
 }
 
@@ -243,6 +262,10 @@ function renderInline(children: CanonicalInline[]): string {
 
     if (child.type === "citation") {
       return `<code class="ik-code-inline">@${escapeHtml(child.key)}</code>`;
+    }
+
+    if (child.type === "label") {
+      return `<span data-label-target="${escapeHtmlAttribute(child.target)}"></span>`;
     }
 
     if (child.type === "reference") {

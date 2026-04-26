@@ -20,9 +20,7 @@ export function serializeCanonicalDocumentToLatex(
   document: CanonicalDocument,
 ): LatexSerializationResult {
   const diagnostics: LatexDiagnostic[] = [];
-  const labels = new Set(
-    document.blocks.flatMap((block) => ("label" in block && block.label ? [block.label] : [])),
-  );
+  const labels = collectLabels(document.blocks);
 
   const lines = [
     `% Generated deterministically from canonical AST ${document.id}`,
@@ -33,6 +31,12 @@ export function serializeCanonicalDocumentToLatex(
     "\\usepackage{xcolor}",
     "\\usepackage{array}",
     "\\usepackage{enumitem}",
+    ...(document.settings.customPreamble ?? []).filter((entry) => entry.enabled).flatMap((entry) => [
+      `% IK custom preamble: ${entry.id}`,
+      entry.source,
+    ]),
+    ...(document.settings.bibliographyEngine ? [`% IK bibliography engine: ${document.settings.bibliographyEngine}`] : []),
+    ...(document.settings.citationStyle ? [`% IK citation style: ${document.settings.citationStyle}`] : []),
     "\\renewcommand{\\familydefault}{\\sfdefault}",
     "\\setlength{\\parindent}{0pt}",
     "\\setlength{\\parskip}{0.75em}",
@@ -42,6 +46,10 @@ export function serializeCanonicalDocumentToLatex(
     "\\newcommand{\\IkTheoremBlock}[1]{\\par\\vspace{0.6em}\\noindent\\hspace{0.25in}\\begin{minipage}{0.86\\linewidth}#1\\end{minipage}\\par\\vspace{0.6em}}",
     "\\newcommand{\\IkComment}[4]{\\texttt{[comment: #3 - #4]}}",
     "\\newcommand{\\IkPlacedFootnote}[1]{\\texttt{(note: #1)}}",
+    "\\newcommand{\\IkLabel}[1]{\\label{#1}}",
+    "\\newcommand{\\IkCitationVariant}[2]{\\texttt{@#2}}",
+    "\\newcommand{\\IkSemanticInset}[2]{\\textbf{#1:} #2}",
+    "\\newcommand{\\IkIncludePlaceholder}[3]{\\texttt{Included \\detokenize{#1} \\detokenize{#3}}}",
     `\\newcommand{\\IkTableCell}[2]{\\fbox{\\begin{minipage}[t][${table.cellHeightIn}in][c]{#1}#2\\end{minipage}}}`,
     `\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][${figure.placeholderHeightIn}in][c]{${figure.placeholderWidthRatio}\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}`,
     "\\newcommand{\\IkAssetFigurePlaceholder}[4]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][#2][c]{#1}\\centering #3\\end{minipage}}\\\\[0.35em]#4\\end{center}\\vspace{0.4em}}",
@@ -158,7 +166,42 @@ function serializeBlock(
     ];
   }
 
+  if (block.type === "semantic_inset") {
+    return [`\\IkSemanticInset{${escapeLatex(block.insetKind)}}{${serializeInline(block.children, block, labels, diagnostics)}}`, ""];
+  }
+
+  if (block.type === "include") {
+    return [`\\IkIncludePlaceholder{${block.includeKind}}{${block.targetDocumentId}}{${block.title}}`, ""];
+  }
+
   return ["\\newpage", ""];
+}
+
+function collectLabels(blocks: CanonicalBlock[]): Set<string> {
+  const blockLabels = blocks.flatMap((block) => ("label" in block && block.label ? [block.label] : []));
+  const inlineLabels = blocks.flatMap((block) => {
+    if (!("children" in block)) {
+      return [];
+    }
+
+    return collectInlineLabels(block.children);
+  });
+
+  return new Set([...blockLabels, ...inlineLabels]);
+}
+
+function collectInlineLabels(children: CanonicalInline[]): string[] {
+  return children.flatMap((child): string[] => {
+    if (child.type === "label") {
+      return [child.target];
+    }
+
+    if ("children" in child) {
+      return collectInlineLabels(child.children);
+    }
+
+    return [];
+  });
 }
 
 function serializeInline(
@@ -178,7 +221,15 @@ function serializeInline(
       }
 
       if (child.type === "citation") {
+        if (child.variant && child.variant !== "default") {
+          return `\\IkCitationVariant{${escapeLatex(child.variant)}}{${escapeLatex(child.key)}}`;
+        }
+
         return `\\texttt{@${escapeLatex(child.key)}}`;
+      }
+
+      if (child.type === "label") {
+        return `\\IkLabel{${escapeLatex(child.target)}}`;
       }
 
       if (child.type === "footnote") {

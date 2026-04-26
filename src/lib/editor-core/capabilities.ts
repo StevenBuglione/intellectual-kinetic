@@ -4,7 +4,7 @@ export type ParityCapability = {
   id: string;
   family: string;
   status: ParityCapabilityStatus;
-  gate: "gate-1" | "gate-2" | "gate-3" | "future";
+  gate: "gate-1" | "gate-2" | "gate-3" | "gate-4" | "future";
   fixtureFamilies: string[];
 };
 
@@ -120,6 +120,34 @@ export const parityCapabilityRegistry: ParityCapability[] = [
     status: "verified",
     gate: "gate-3",
     fixtureFamilies: ["gate-three-layout"],
+  },
+  {
+    id: "lyx-document-settings",
+    family: "document classes, modules, and settings",
+    status: "verified",
+    gate: "gate-4",
+    fixtureFamilies: ["gate-four-lyx-core"],
+  },
+  {
+    id: "citation-style-variants",
+    family: "bibliography and citations",
+    status: "verified",
+    gate: "gate-4",
+    fixtureFamilies: ["gate-four-lyx-core"],
+  },
+  {
+    id: "custom-semantic-insets",
+    family: "notes and insets",
+    status: "verified",
+    gate: "gate-4",
+    fixtureFamilies: ["gate-four-lyx-core"],
+  },
+  {
+    id: "master-document-placeholders",
+    family: "document structure and semantic blocks",
+    status: "verified",
+    gate: "gate-4",
+    fixtureFamilies: ["gate-four-lyx-core"],
   },
   {
     id: "cjk-and-rtl-support",

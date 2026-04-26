@@ -9,7 +9,7 @@ export type TiptapNode = {
   type: string;
   attrs?: Record<string, unknown>;
   text?: string;
-  marks?: Array<{ type: string }>;
+  marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
   content?: TiptapNode[];
 };
 
@@ -155,6 +155,33 @@ function blockToTiptapNode(block: CanonicalBlock): TiptapNode {
     };
   }
 
+  if (block.type === "semantic_inset") {
+    return {
+      type: "blockquote",
+      attrs: { ...canonicalAttrs, canonicalBlockType: "semantic_inset", insetKind: block.insetKind },
+      content: [{ type: "paragraph", content: inlineToTiptap(block.children) }],
+    };
+  }
+
+  if (block.type === "include") {
+    return {
+      type: "blockquote",
+      attrs: {
+        ...canonicalAttrs,
+        canonicalBlockType: "include",
+        includeKind: block.includeKind,
+        targetDocumentId: block.targetDocumentId,
+        title: block.title,
+      },
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: `Included ${block.includeKind} ${block.title}` }],
+        },
+      ],
+    };
+  }
+
   return {
     type: "paragraph",
     attrs: canonicalAttrs,
@@ -173,6 +200,10 @@ function inlineToPlainText(child: CanonicalInline): string {
 
   if (child.type === "citation") {
     return `@${child.key}`;
+  }
+
+  if (child.type === "label") {
+    return "";
   }
 
   if (child.type === "footnote") {
@@ -212,40 +243,55 @@ function inlineToTiptap(children: CanonicalInline[]): TiptapNode[] {
         type: "text",
         text: `@${child.key}`,
         marks: [{ type: "code" }],
+        attrs: {
+          citationKey: child.key,
+          citationVariant: child.variant ?? "default",
+        },
       };
-  }
+    }
 
-  if (child.type === "footnote") {
+    if (child.type === "label") {
+      return {
+        type: "text",
+        text: "",
+        attrs: {
+          labelTarget: child.target,
+          "data-canonical-kind": "label",
+        },
+      };
+    }
+
+    if (child.type === "footnote") {
+      return {
+        type: "text",
+        text: `(note: ${child.children.map(inlineToPlainText).join("")})`,
+        marks: [{ type: "code" }],
+        attrs: { placement: child.placement },
+      };
+    }
+
+    if (child.type === "language_span") {
+      return {
+        type: "text",
+        text: child.children.map(inlineToPlainText).join(""),
+      };
+    }
+
+    if (child.type === "comment") {
+      return {
+        type: "text",
+        text: `[comment: ${child.children.map(inlineToPlainText).join("")} - ${child.comment}]`,
+        marks: [{ type: "code" }],
+        attrs: {
+          commentId: child.id,
+          commentAuthor: child.author,
+          commentStatus: child.status,
+          commentText: child.comment,
+        },
+      };
+    }
+
     return {
-      type: "text",
-      text: `(note: ${child.children.map(inlineToPlainText).join("")})`,
-      marks: [{ type: "code" }],
-      attrs: { placement: child.placement },
-    };
-  }
-
-  if (child.type === "language_span") {
-    return {
-      type: "text",
-      text: child.children.map(inlineToPlainText).join(""),
-    };
-  }
-
-  if (child.type === "comment") {
-    return {
-      type: "text",
-      text: `[comment: ${child.children.map(inlineToPlainText).join("")} - ${child.comment}]`,
-      marks: [{ type: "code" }],
-      attrs: {
-        commentId: child.id,
-        commentAuthor: child.author,
-        commentStatus: child.status,
-        commentText: child.comment,
-      },
-    };
-  }
-
-  return {
       type: "text",
       text: `[[${child.target}]]`,
       marks: [{ type: "code" }],
@@ -297,6 +343,27 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
         type: "quote",
         quoteKind: node.attrs?.quoteKind === "quote" || node.attrs?.quoteKind === "verse" ? node.attrs.quoteKind : "quotation",
         children: tiptapInlineToCanonical(node.content?.flatMap((child) => child.content ?? []) ?? []),
+        reviewState,
+      };
+    }
+
+    if (node.attrs?.canonicalBlockType === "semantic_inset") {
+      return {
+        id,
+        type: "semantic_inset",
+        insetKind: isSemanticInsetKind(node.attrs?.insetKind) ? node.attrs.insetKind : "custom",
+        children: tiptapInlineToCanonical(node.content?.flatMap((child) => child.content ?? []) ?? []),
+        reviewState,
+      };
+    }
+
+    if (node.attrs?.canonicalBlockType === "include") {
+      return {
+        id,
+        type: "include",
+        includeKind: isIncludeKind(node.attrs?.includeKind) ? node.attrs.includeKind : "child_document",
+        targetDocumentId: String(node.attrs?.targetDocumentId ?? ""),
+        title: String(node.attrs?.title ?? ""),
         reviewState,
       };
     }
@@ -397,6 +464,21 @@ function tiptapInlineToCanonical(nodes: TiptapNode[]): CanonicalInline[] {
       return { type: "math_inline", tex: String(node.attrs?.tex ?? "") };
     }
 
+    if (typeof node.attrs?.labelTarget === "string") {
+      return {
+        type: "label",
+        target: node.attrs.labelTarget,
+      };
+    }
+
+    if (typeof node.attrs?.citationKey === "string") {
+      return {
+        type: "citation",
+        key: node.attrs.citationKey,
+        variant: isCitationVariant(node.attrs?.citationVariant) ? node.attrs.citationVariant : "default",
+      };
+    }
+
     if (typeof node.attrs?.commentId === "string") {
       return {
         type: "comment",
@@ -433,4 +515,16 @@ function isListLayout(value: unknown): value is NonNullable<Extract<CanonicalBlo
 
 function isFigureAsset(value: unknown): value is NonNullable<Extract<CanonicalBlock, { type: "figure" }>["asset"]> {
   return typeof value === "object" && value !== null && "assetId" in value;
+}
+
+function isCitationVariant(value: unknown): value is NonNullable<Extract<CanonicalInline, { type: "citation" }>["variant"]> {
+  return value === "default" || value === "textual" || value === "parenthetical" || value === "year";
+}
+
+function isSemanticInsetKind(value: unknown): value is Extract<CanonicalBlock, { type: "semantic_inset" }>["insetKind"] {
+  return value === "affiliation" || value === "keywords" || value === "email" || value === "custom";
+}
+
+function isIncludeKind(value: unknown): value is Extract<CanonicalBlock, { type: "include" }>["includeKind"] {
+  return value === "child_document" || value === "input" || value === "include";
 }

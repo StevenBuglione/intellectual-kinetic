@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateFourLyxCoreFixture } from "@/fixtures/parity/gate-four-lyx-core";
 import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
 import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
@@ -111,5 +112,20 @@ describe("canonical document foundation", () => {
     expect(JSON.stringify(result.document)).toContain("comment-reading");
     expect(JSON.stringify(result.document)).toContain("lower-alpha");
     expect(JSON.stringify(result.document)).toContain("page_footer");
+  });
+
+  it("validates Gate 4 LyX document settings, labels, citations, includes, and semantic insets", () => {
+    const result = validateCanonicalDocument(gateFourLyxCoreFixture);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(result.errors.join("\n"));
+    }
+    expect(result.document.settings.templateFamily).toBe("Articles");
+    expect(result.document.settings.bibliographyEngine).toBe("biblatex");
+    expect(JSON.stringify(result.document)).toContain("semantic_inset");
+    expect(JSON.stringify(result.document)).toContain("child_document");
+    expect(JSON.stringify(result.document)).toContain("sec:lyx-core");
+    expect(JSON.stringify(result.document)).toContain("textual");
   });
 });

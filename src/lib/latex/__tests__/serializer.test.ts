@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateFourLyxCoreFixture } from "@/fixtures/parity/gate-four-lyx-core";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
 import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
 import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
@@ -81,5 +82,19 @@ describe("deterministic LaTeX serializer", () => {
     expect(result.source).toContain("\\IkTableCell{1.50in}{\\raggedright \\textbf{Region}}");
     expect(result.source).toContain("\\IkTableCell{2.70in}{\\centering \\textbf{Observation}}");
     expect(result.source).toContain("\\IkAssetFigurePlaceholder{0.62\\linewidth}{1.38in}{Plate A restored source crop}{Asset-backed plate placeholder\\label{fig:plate-a}}");
+  });
+
+  it("serializes Gate 4 LyX settings, labels, citation variants, includes, and semantic insets", () => {
+    const result = serializeCanonicalDocumentToLatex(gateFourLyxCoreFixture);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.source).toContain("% IK custom preamble: preamble-microtype");
+    expect(result.source).toContain("\\usepackage{microtype}");
+    expect(result.source).toContain("% IK bibliography engine: biblatex");
+    expect(result.source).toContain("\\IkLabel{sec:lyx-core}");
+    expect(result.source).toContain("\\IkSemanticInset{affiliation}{Institute for Deterministic Restoration}");
+    expect(result.source).toContain("\\IkCitationVariant{textual}{lyx2026}");
+    expect(result.source).toContain("\\IkCitationVariant{year}{knuth1984}");
+    expect(result.source).toContain("\\IkIncludePlaceholder{child_document}{appendix-a}{Appendix A}");
   });
 });

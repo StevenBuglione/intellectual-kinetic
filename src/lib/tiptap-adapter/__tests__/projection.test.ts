@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateFourLyxCoreFixture } from "@/fixtures/parity/gate-four-lyx-core";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
 import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
 import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
@@ -90,5 +91,18 @@ describe("Tiptap projection boundary", () => {
         asset: expect.objectContaining({ assetId: "asset-plate-a" }),
       }),
     ]));
+  });
+
+  it("round trips Gate 4 LyX semantic insets and include placeholders through the adapter boundary", () => {
+    const projected = canonicalToTiptapDocument(gateFourLyxCoreFixture);
+    const patch = tiptapDocumentToCanonicalPatch(projected);
+
+    expect(JSON.stringify(projected)).toContain("sec:lyx-core");
+    expect(JSON.stringify(projected)).toContain("affiliation");
+    expect(JSON.stringify(projected)).toContain("appendix-a");
+    expect(JSON.stringify(projected)).toContain("textual");
+    expect(patch.blocks.map((block) => block.type)).toEqual(gateFourLyxCoreFixture.blocks.map((block) => block.type));
+    expect(JSON.stringify(patch.blocks)).toContain("semantic_inset");
+    expect(JSON.stringify(patch.blocks)).toContain("include");
   });
 });

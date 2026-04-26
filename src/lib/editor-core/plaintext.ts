@@ -63,7 +63,15 @@ function canonicalBlockToEditorText(block: CanonicalBlock): string {
     return `Abstract ${block.children.map(canonicalInlineToEditorText).join("")}`;
   }
 
-  return block.children.map(canonicalInlineToEditorText).join("");
+  if (block.type === "include") {
+    return `Included ${block.includeKind} ${block.title}`;
+  }
+
+  if (block.type === "semantic_inset") {
+    return `${block.insetKind}: ${block.children.map(canonicalInlineToEditorText).join("")}`;
+  }
+
+  return "children" in block ? block.children.map(canonicalInlineToEditorText).join("") : "";
 }
 
 function listMarker(block: Extract<CanonicalBlock, { type: "list" }>, index: number): string {
@@ -89,6 +97,10 @@ function canonicalInlineToEditorText(child: CanonicalInline): string {
 
   if (child.type === "citation") {
     return `@${child.key}`;
+  }
+
+  if (child.type === "label") {
+    return "";
   }
 
   if (child.type === "footnote") {

@@ -24,6 +24,10 @@ describe("parity capability registry", () => {
       "asset-backed-figures",
       "comment-annotations",
       "layout-metadata-preservation",
+      "lyx-document-settings",
+      "citation-style-variants",
+      "custom-semantic-insets",
+      "master-document-placeholders",
     ]));
 
     expect(getCapability("cjk-and-rtl-support")).toMatchObject({

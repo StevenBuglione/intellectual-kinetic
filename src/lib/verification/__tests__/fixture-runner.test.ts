@@ -51,6 +51,17 @@ describe("fixture-driven parity verification", () => {
           "pdf-text-parity",
         ]),
       }),
+      expect.objectContaining({
+        id: "fixture-gate-four-lyx-core",
+        checks: expect.arrayContaining([
+          "canonical-validation",
+          "tiptap-projection",
+          "latex-serialization",
+          "pdf-compilation",
+          "pdf-font-contract",
+          "pdf-text-parity",
+        ]),
+      }),
     ]);
   });
 });

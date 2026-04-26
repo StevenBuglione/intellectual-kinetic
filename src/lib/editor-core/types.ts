@@ -6,6 +6,16 @@ export type CanonicalDocumentSettings = {
   encoding: "utf8";
   modules: string[];
   template: string;
+  templateFamily?: "Articles" | "Books" | "Letters" | "Presentations" | "Custom";
+  enabledModules?: string[];
+  bibliographyEngine?: "basic" | "natbib" | "biblatex";
+  citationStyle?: "numeric" | "authoryear";
+  customPreamble?: Array<{
+    id: string;
+    kind: "package" | "macro";
+    source: string;
+    enabled: boolean;
+  }>;
 };
 
 export type CanonicalMetadata = {
@@ -33,10 +43,16 @@ export type MathInline = {
 export type CitationInline = {
   type: "citation";
   key: string;
+  variant?: "default" | "textual" | "parenthetical" | "year";
 };
 
 export type ReferenceInline = {
   type: "reference";
+  target: string;
+};
+
+export type LabelInline = {
+  type: "label";
   target: string;
 };
 
@@ -66,6 +82,7 @@ export type CanonicalInline =
   | MathInline
   | CitationInline
   | ReferenceInline
+  | LabelInline
   | FootnoteInline
   | LanguageSpanInline
   | CommentInline;
@@ -208,6 +225,25 @@ export type BibliographyBlock = {
   reviewState: ReviewState;
 };
 
+export type SemanticInsetBlock = {
+  id: string;
+  type: "semantic_inset";
+  insetKind: "affiliation" | "keywords" | "email" | "custom";
+  children: CanonicalInline[];
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
+export type IncludeBlock = {
+  id: string;
+  type: "include";
+  includeKind: "child_document" | "input" | "include";
+  targetDocumentId: string;
+  title: string;
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
 export type CanonicalBlock =
   | ParagraphBlock
   | HeadingBlock
@@ -219,7 +255,9 @@ export type CanonicalBlock =
   | PageBreakBlock
   | AbstractBlock
   | QuoteBlock
-  | BibliographyBlock;
+  | BibliographyBlock
+  | SemanticInsetBlock
+  | IncludeBlock;
 
 export type CanonicalDocument = {
   schemaVersion: 1;

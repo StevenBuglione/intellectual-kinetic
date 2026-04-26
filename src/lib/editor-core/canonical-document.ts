@@ -19,8 +19,13 @@ const inlineSchema: InlineSchema = z.lazy(() => z.discriminatedUnion("type", [
     marks: z.array(z.enum(["emphasis", "strong", "code"])).optional(),
   }),
   z.object({ type: z.literal("math_inline"), tex: z.string().min(1) }),
-  z.object({ type: z.literal("citation"), key: z.string().min(1) }),
+  z.object({
+    type: z.literal("citation"),
+    key: z.string().min(1),
+    variant: z.enum(["default", "textual", "parenthetical", "year"]).optional(),
+  }),
   z.object({ type: z.literal("reference"), target: z.string().min(1) }),
+  z.object({ type: z.literal("label"), target: z.string().min(1) }),
   z.object({
     type: z.literal("footnote"),
     placement: z.enum(["inline", "page_footer"]).optional(),
@@ -153,6 +158,20 @@ const blockSchema = z.discriminatedUnion("type", [
     provenance: provenanceSchema.optional(),
     reviewState: reviewStateSchema,
   }),
+  z.object({
+    ...contentBlockBase,
+    type: z.literal("semantic_inset"),
+    insetKind: z.enum(["affiliation", "keywords", "email", "custom"]),
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("include"),
+    includeKind: z.enum(["child_document", "input", "include"]),
+    targetDocumentId: z.string().min(1),
+    title: z.string().min(1),
+    provenance: provenanceSchema.optional(),
+    reviewState: reviewStateSchema,
+  }),
 ]);
 
 const canonicalDocumentSchema = z.object({
@@ -166,6 +185,16 @@ const canonicalDocumentSchema = z.object({
     encoding: z.literal("utf8"),
     modules: z.array(z.string().min(1)),
     template: z.string().min(1),
+    templateFamily: z.enum(["Articles", "Books", "Letters", "Presentations", "Custom"]).optional(),
+    enabledModules: z.array(z.string().min(1)).optional(),
+    bibliographyEngine: z.enum(["basic", "natbib", "biblatex"]).optional(),
+    citationStyle: z.enum(["numeric", "authoryear"]).optional(),
+    customPreamble: z.array(z.object({
+      id: z.string().min(1),
+      kind: z.enum(["package", "macro"]),
+      source: z.string().min(1),
+      enabled: z.boolean(),
+    })).optional(),
   }),
   metadata: z.object({
     projectId: z.string().min(1),
