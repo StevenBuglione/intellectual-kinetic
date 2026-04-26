@@ -32,10 +32,30 @@ async function runDockerOracle() {
   if (!existsSync(join(repoRoot, "Dockerfile.lyx-oracle"))) {
     throw new Error("Dockerfile.lyx-oracle is missing.");
   }
+  if (!existsSync(join(repoRoot, ".ref/lyx/CMakeLists.txt"))) {
+    throw new Error(".ref/lyx source checkout is required for the source-built LyX oracle.");
+  }
 
-  await spawnChecked("docker", ["build", "-f", "Dockerfile.lyx-oracle", "-t", imageName, "."], {
-    cwd: repoRoot,
-  });
+  if (process.env.IK_LYX_ORACLE_REBUILD === "1" || !(await dockerImageExists(imageName))) {
+    await spawnChecked(
+      "docker",
+      [
+        "build",
+        "-f",
+        "Dockerfile.lyx-oracle",
+        "--build-context",
+        "lyxsrc=.ref/lyx",
+        "-t",
+        imageName,
+        ".",
+      ],
+      {
+        cwd: repoRoot,
+      },
+    );
+  } else {
+    console.log(`Using existing ${imageName} image; set IK_LYX_ORACLE_REBUILD=1 to rebuild it.`);
+  }
   await spawnChecked(
     "docker",
     [
@@ -58,6 +78,15 @@ async function runDockerOracle() {
   );
 }
 
+async function dockerImageExists(image) {
+  try {
+    await execFileAsync("docker", ["image", "inspect", image]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function spawnChecked(command, args, options) {
   await new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -77,10 +106,10 @@ async function spawnChecked(command, args, options) {
   });
 }
 
-if (await commandExists("lyx")) {
-  console.log("Running LyX oracle with local lyx binary.");
+if (process.env.IK_LYX_ORACLE_USE_LOCAL === "1" && await commandExists("lyx")) {
+  console.log("Running LyX oracle with local lyx binary because IK_LYX_ORACLE_USE_LOCAL=1.");
   await runLocalOracle();
 } else {
-  console.log("Local lyx binary not found; running LyX oracle in Docker.");
+  console.log("Running LyX oracle in Docker with the source-built .ref/lyx image.");
   await runDockerOracle();
 }

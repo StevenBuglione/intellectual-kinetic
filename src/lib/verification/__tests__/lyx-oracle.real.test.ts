@@ -7,13 +7,16 @@ const describeRealLyx = process.env.IK_RUN_REAL_LYX_ORACLE === "1" ? describe : 
 describeRealLyx("real LyX oracle verification", () => {
   it("exports LyX fixtures and compares them with canonical serializer signatures", async () => {
     const report = await runLyxOracleVerification(lyxOracleFixtures);
+    const failedFixtures = report.fixtures.filter((fixture) => fixture.errors.length > 0);
 
+    expect(failedFixtures, JSON.stringify(failedFixtures, null, 2)).toEqual([]);
     expect(report.status).toBe("passed");
     expect(report.coveredFeatureIds).toEqual(expect.arrayContaining([
       "bibliography-insert-manage",
       "branch-conditional-content",
       "caption-management",
       "cjk-and-rtl-support",
+      "current-upstream-format-643",
       "docclass-select",
       "doc-metadata-settings",
       "encoding-selection-validation",
@@ -50,6 +53,16 @@ describeRealLyx("real LyX oracle verification", () => {
         checks: expect.arrayContaining([
           "lyx-export",
           "upstream-reference-tex-signatures",
+          "shared-text-signatures",
+          "lyx-feature-coverage",
+        ]),
+        errors: [],
+      }),
+      expect.objectContaining({
+        id: "lyx-current-upstream-complicated-table",
+        checks: expect.arrayContaining([
+          "lyx-export",
+          "lyx-source-signatures",
           "shared-text-signatures",
           "lyx-feature-coverage",
         ]),

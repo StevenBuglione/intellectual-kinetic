@@ -1,15 +1,54 @@
+# syntax=docker/dockerfile:1.7
 FROM node:24-bookworm-slim
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /workspace
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    lyx \
+    build-essential \
+    ca-certificates \
+    cmake \
+    gettext \
+    libmagic-dev \
+    libqt6svg6-dev \
+    ninja-build \
+    perl \
+    pkg-config \
     poppler-utils \
+    python3 \
+    qt6-base-dev \
+    qt6-tools-dev \
+    qt6-tools-dev-tools \
     texlive-latex-base \
     texlive-latex-recommended \
     texlive-latex-extra \
     texlive-fonts-recommended \
   && rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=bind,from=lyxsrc,source=.,target=/opt/lyx-src,ro \
+  cmake -S /opt/lyx-src -B /opt/lyx-build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLYX_USE_QT=QT6 \
+    -DLYX_ENABLE_BUILD_TYPE=release \
+    -DLYX_DEBUG=OFF \
+    -DLYX_STDLIB_DEBUG=OFF \
+    -DLYX_NLS=OFF \
+    -DLYX_PROGRAM_SUFFIX=OFF \
+    -DLYX_EXTERNAL_Z=OFF \
+    -DLYX_EXTERNAL_ICONV=OFF \
+    -DLYX_EXTERNAL_HUNSPELL=OFF \
+    -DLYX_REQUIRE_SPELLCHECK=OFF \
+    -DLYX_ENABLE_EXPORT_TESTS=OFF \
+    -DLYX_ENABLE_KEYTESTS=OFF \
+  && cmake --build /opt/lyx-build --target lyx tex2lyx --parallel 2 \
+  && printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'export LYX_DIR_26x="${LYX_DIR_26x:-/workspace/.ref/lyx/lib}"' \
+    'exec /opt/lyx-build/bin/lyx "$@"' \
+    > /usr/local/bin/lyx \
+  && chmod +x /usr/local/bin/lyx
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV IK_RUN_REAL_LYX_ORACLE=1

@@ -75,6 +75,27 @@ export const lyxOracleFixtures: LyxOracleFixture[] = [
     ],
   },
   {
+    id: "lyx-current-upstream-complicated-table",
+    kind: "lyx-export-regression",
+    lyxPath: path.join(repoRoot, ".ref/lyx/autotests/export/latex/lyxbugs-resolved/13217-complicated-table.lyx"),
+    expectedText: [
+      "f'(\\hat{l})=\\lambda g'(\\tilde{l})",
+      "\\kappa^{\\prime-1}(-\\lambda)\\geq0",
+    ],
+    lyxRequiredSource: [
+      "\\begin{tabular}",
+      "\\multicolumn{2}",
+      "$f'(\\hat{l})=\\lambda g'(\\tilde{l})$",
+      "$\\kappa^{\\prime-1}(-\\lambda)\\geq0$",
+    ],
+    featureIds: [
+      "current-upstream-format-643",
+      "table-cell-merge-and-span",
+      "inline-and-display-math",
+      "latex-export",
+    ],
+  },
+  {
     id: "lyx-upstream-figure-caption-cprotect",
     kind: "lyx-export-regression",
     lyxPath: path.join(repoRoot, ".ref/lyx/autotests/export/latex/lyxbugs-resolved/cprotect/9313-comment-in-figure-float-caption.lyx"),
@@ -121,7 +142,9 @@ export const lyxOracleFixtures: LyxOracleFixture[] = [
       "Language change",
     ],
     lyxRequiredSource: [
-      "\\usepackage[iso-8859-7,koi8-r,latin9]{inputenc}",
+      "\\usepackage[latin9]{inputenc}",
+      "\\inputencoding{iso-8859-7}",
+      "\\inputencoding{koi8-r}",
       "\\textgreek",
       "\\textcyr",
       "\\foreignlanguage{greek}",
