@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
+import { canonicalDocumentToEditorText } from "@/lib/editor-core/plaintext";
 import { tiptapDocumentToCanonicalPatch, canonicalToTiptapDocument } from "@/lib/tiptap-adapter/projection";
 import { compileCanonicalDocumentToPdf } from "../compiler";
 
@@ -44,6 +46,16 @@ describe("LaTeX PDF compiler", () => {
     expect(result.status).toBe("compiled");
     expect(normalizePdfParityText(result.extractedText)).toBe(
       "A Treatise on Motion Let v denote velocity and cite @newton1687. Uniform motion preserves proportional distance. s = vt",
+    );
+  }, 30_000);
+
+  it("compiles Gate 1 structures into a text-verified rendered preview image", async () => {
+    const result = await compileCanonicalDocumentToPdf(gateOneStructureFixture);
+
+    expect(result.status).toBe("compiled");
+    expect(result.previewImageBase64?.startsWith("iVBOR")).toBe(true);
+    expect(normalizePdfParityText(result.extractedText)).toBe(
+      normalizePdfParityText(canonicalDocumentToEditorText(gateOneStructureFixture)),
     );
   }, 30_000);
 });

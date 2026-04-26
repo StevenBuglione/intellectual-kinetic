@@ -83,11 +83,69 @@ export type DisplayMathBlock = {
   reviewState: ReviewState;
 };
 
+export type ListItem = {
+  id: string;
+  children: CanonicalInline[];
+};
+
+export type ListBlock = {
+  id: string;
+  type: "list";
+  ordered: boolean;
+  items: ListItem[];
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
+export type TableCell = {
+  id: string;
+  children: CanonicalInline[];
+  header?: boolean;
+  colspan?: number;
+  rowspan?: number;
+};
+
+export type TableRow = {
+  id: string;
+  cells: TableCell[];
+};
+
+export type TableBlock = {
+  id: string;
+  type: "table";
+  rows: TableRow[];
+  caption?: CanonicalInline[];
+  label?: string;
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
+export type FigureBlock = {
+  id: string;
+  type: "figure";
+  altText: string;
+  caption?: CanonicalInline[];
+  label?: string;
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
+export type PageBreakBlock = {
+  id: string;
+  type: "page_break";
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
 export type CanonicalBlock =
   | ParagraphBlock
   | HeadingBlock
   | TheoremBlock
-  | DisplayMathBlock;
+  | DisplayMathBlock
+  | ListBlock
+  | TableBlock
+  | FigureBlock
+  | PageBreakBlock;
 
 export type CanonicalDocument = {
   schemaVersion: 1;

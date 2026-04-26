@@ -484,6 +484,50 @@ function CanonicalDocumentFallback({ document }: { document: CanonicalDocument }
           return <blockquote key={block.id}>{block.children.map(renderInlineFallback)}</blockquote>;
         }
 
+        if (block.type === "list") {
+          const ListTag = block.ordered ? "ol" : "ul";
+          return (
+            <ListTag key={block.id}>
+              {block.items.map((item) => (
+                <li key={item.id}>{item.children.map(renderInlineFallback)}</li>
+              ))}
+            </ListTag>
+          );
+        }
+
+        if (block.type === "table") {
+          return (
+            <figure key={block.id} className="ik-doc-table-figure">
+              {block.caption ? <figcaption>{block.caption.map(renderInlineFallback)}</figcaption> : null}
+              <table>
+                <tbody>
+                  {block.rows.map((row) => (
+                    <tr key={row.id}>
+                      {row.cells.map((cell) => {
+                        const CellTag = cell.header ? "th" : "td";
+                        return <CellTag key={cell.id}>{cell.children.map(renderInlineFallback)}</CellTag>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </figure>
+          );
+        }
+
+        if (block.type === "figure") {
+          return (
+            <figure key={block.id} className="ik-doc-figure-placeholder">
+              <div>{block.altText}</div>
+              {block.caption ? <figcaption>{block.caption.map(renderInlineFallback)}</figcaption> : null}
+            </figure>
+          );
+        }
+
+        if (block.type === "page_break") {
+          return <hr key={block.id} className="ik-doc-page-break" />;
+        }
+
         return null;
       })}
     </article>

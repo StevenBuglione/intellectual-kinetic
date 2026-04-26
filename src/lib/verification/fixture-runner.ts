@@ -1,3 +1,4 @@
+import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { validateCanonicalDocument } from "@/lib/editor-core/canonical-document";
 import { compareCanonicalDocumentToPdfText } from "@/lib/editor-core/plaintext";
@@ -14,7 +15,7 @@ export type FixtureVerificationReport = {
   }>;
 };
 
-const fixtures = [restorationFoundationFixture];
+const fixtures = [restorationFoundationFixture, gateOneStructureFixture];
 
 export async function runParityFixtureVerification(): Promise<FixtureVerificationReport> {
   const fixtureReports = await Promise.all(fixtures.map(async (fixture) => {

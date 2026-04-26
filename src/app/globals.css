@@ -483,6 +483,63 @@ button {
   font-size: 16px;
 }
 
+.ik-doc-editor-page ul,
+.ik-doc-editor-page ol {
+  margin: 0 0 14px 24px;
+  padding: 0;
+}
+
+.ik-doc-editor-page li {
+  margin: 0 0 6px;
+  padding-left: 4px;
+}
+
+.ik-doc-editor-page table {
+  width: 100%;
+  margin: 12px 0 6px;
+  border-collapse: collapse;
+}
+
+.ik-doc-editor-page th,
+.ik-doc-editor-page td {
+  min-width: 96px;
+  padding: 6px 8px;
+  border: 1px solid #dadce0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.ik-doc-editor-page th {
+  font-weight: 600;
+  background: #f8fafd;
+}
+
+.ik-doc-table-figure,
+.ik-doc-figure-placeholder {
+  margin: 18px 0;
+}
+
+.ik-doc-table-figure figcaption,
+.ik-doc-figure-placeholder figcaption {
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.ik-doc-figure-placeholder div {
+  display: grid;
+  min-height: 96px;
+  place-items: center;
+  border: 1px solid #dadce0;
+  color: #5f6368;
+  background: #f8fafd;
+}
+
+.ik-doc-page-break {
+  margin: 28px 0;
+  border: 0;
+  border-top: 2px dashed #c4c7c5;
+}
+
 .ik-doc-side-panel {
   min-width: 0;
   max-height: calc(100vh - 146px);

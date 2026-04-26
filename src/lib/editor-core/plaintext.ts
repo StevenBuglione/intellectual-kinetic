@@ -33,6 +33,28 @@ function canonicalBlockToEditorText(block: CanonicalBlock): string {
     return block.tex;
   }
 
+  if (block.type === "list") {
+    return block.items.map((item, index) => {
+      const marker = block.ordered ? `${index + 1}. ` : "• ";
+      return `${marker}${item.children.map(canonicalInlineToEditorText).join("")}`;
+    }).join(" ");
+  }
+
+  if (block.type === "table") {
+    return [
+      block.caption?.map(canonicalInlineToEditorText).join("") ?? "",
+      ...block.rows.flatMap((row) => row.cells.map((cell) => cell.children.map(canonicalInlineToEditorText).join(""))),
+    ].filter(Boolean).join(" ");
+  }
+
+  if (block.type === "figure") {
+    return [block.altText, block.caption?.map(canonicalInlineToEditorText).join("") ?? ""].filter(Boolean).join(" ");
+  }
+
+  if (block.type === "page_break") {
+    return "";
+  }
+
   return block.children.map(canonicalInlineToEditorText).join("");
 }
 

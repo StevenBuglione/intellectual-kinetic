@@ -17,6 +17,16 @@ describe("fixture-driven parity verification", () => {
           "pdf-text-parity",
         ]),
       }),
+      expect.objectContaining({
+        id: "fixture-gate-one-structure",
+        checks: expect.arrayContaining([
+          "canonical-validation",
+          "tiptap-projection",
+          "latex-serialization",
+          "pdf-compilation",
+          "pdf-text-parity",
+        ]),
+      }),
     ]);
   });
 });

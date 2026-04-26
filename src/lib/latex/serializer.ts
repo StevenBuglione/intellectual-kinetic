@@ -35,6 +35,7 @@ export function serializeCanonicalDocumentToLatex(
     "\\newcommand{\\IkHeadingTwo}[1]{{\\fontsize{17pt}{22pt}\\selectfont\\bfseries #1}\\par\\vspace{0.3em}}",
     "\\newcommand{\\IkHeadingThree}[1]{{\\fontsize{14pt}{18pt}\\selectfont\\bfseries #1}\\par\\vspace{0.25em}}",
     "\\newcommand{\\IkTheoremBlock}[1]{\\par\\vspace{0.6em}\\noindent\\hspace{0.25in}\\begin{minipage}{0.86\\linewidth}#1\\end{minipage}\\par\\vspace{0.6em}}",
+    "\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}{0.68\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}",
     "\\makeatletter\\let\\ps@plain\\ps@empty\\makeatother",
     "\\pagestyle{empty}",
     "\\begin{document}",
@@ -70,8 +71,44 @@ function serializeBlock(
     return [`\\IkTheoremBlock{${label}${serializeInline(block.children, block, labels, diagnostics)}}`, ""];
   }
 
-  const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
-  return [label, `\\[${block.tex}\\]`, ""];
+  if (block.type === "math_display") {
+    const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
+    return [label, `\\[${block.tex}\\]`, ""];
+  }
+
+  if (block.type === "list") {
+    return [
+      ...block.items.map((item, index) => {
+        const marker = block.ordered ? `${index + 1}.` : "\\textbullet{}";
+        return `${marker} ${serializeInline(item.children, block, labels, diagnostics)}\\\\`;
+      }),
+      "",
+    ];
+  }
+
+  if (block.type === "table") {
+    const caption = block.caption ? serializeInline(block.caption, block, labels, diagnostics) : "";
+    const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
+    const rows = block.rows.map((row) => (
+      `${row.cells.map((cell) => serializeInline(cell.children, block, labels, diagnostics)).join(" \\hspace{2em} ")}\\\\`
+    ));
+
+    return [
+      caption ? `\\textbf{${caption}}${label}` : label,
+      "\\begin{flushleft}",
+      ...rows,
+      "\\end{flushleft}",
+      "",
+    ];
+  }
+
+  if (block.type === "figure") {
+    const caption = block.caption ? serializeInline(block.caption, block, labels, diagnostics) : "";
+    const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
+    return [`\\IkFigurePlaceholder{${escapeLatex(block.altText)}}{${caption}${label}}`, ""];
+  }
+
+  return ["\\newpage", ""];
 }
 
 function serializeInline(

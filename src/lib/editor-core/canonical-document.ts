@@ -53,6 +53,50 @@ const blockSchema = z.discriminatedUnion("type", [
     provenance: provenanceSchema.optional(),
     reviewState: reviewStateSchema,
   }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("list"),
+    ordered: z.boolean(),
+    items: z.array(z.object({
+      id: z.string().min(1),
+      children: z.array(inlineSchema),
+    })).min(1),
+    provenance: provenanceSchema.optional(),
+    reviewState: reviewStateSchema,
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("table"),
+    rows: z.array(z.object({
+      id: z.string().min(1),
+      cells: z.array(z.object({
+        id: z.string().min(1),
+        children: z.array(inlineSchema),
+        header: z.boolean().optional(),
+        colspan: z.number().int().min(1).optional(),
+        rowspan: z.number().int().min(1).optional(),
+      })).min(1),
+    })).min(1),
+    caption: z.array(inlineSchema).optional(),
+    label: z.string().min(1).optional(),
+    provenance: provenanceSchema.optional(),
+    reviewState: reviewStateSchema,
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("figure"),
+    altText: z.string(),
+    caption: z.array(inlineSchema).optional(),
+    label: z.string().min(1).optional(),
+    provenance: provenanceSchema.optional(),
+    reviewState: reviewStateSchema,
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("page_break"),
+    provenance: provenanceSchema.optional(),
+    reviewState: reviewStateSchema,
+  }),
 ]);
 
 const canonicalDocumentSchema = z.object({
@@ -117,6 +161,29 @@ function normalizeBlock(block: CanonicalBlock): CanonicalBlock {
 
         return true;
       }),
+    };
+  }
+
+  if (block.type === "list") {
+    return {
+      ...block,
+      items: block.items.map((item) => ({
+        ...item,
+        children: item.children.filter((child) => child.type !== "text" || child.text.length > 0),
+      })),
+    };
+  }
+
+  if (block.type === "table") {
+    return {
+      ...block,
+      rows: block.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((cell) => ({
+          ...cell,
+          children: cell.children.filter((child) => child.type !== "text" || child.text.length > 0),
+        })),
+      })),
     };
   }
 

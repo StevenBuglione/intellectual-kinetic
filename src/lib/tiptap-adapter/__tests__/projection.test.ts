@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import {
   canonicalToTiptapDocument,
@@ -31,5 +32,23 @@ describe("Tiptap projection boundary", () => {
         children: expect.arrayContaining([expect.objectContaining({ text: "Let velocity " })]),
       }),
     ]));
+  });
+
+  it("round trips Gate 1 list, table, figure, and page-break structures", () => {
+    const projected = canonicalToTiptapDocument(gateOneStructureFixture);
+    const patch = tiptapDocumentToCanonicalPatch(projected);
+
+    expect(projected.content?.map((node) => node.type)).toEqual([
+      "heading",
+      "paragraph",
+      "bulletList",
+      "table",
+      "blockquote",
+      "horizontalRule",
+      "paragraph",
+    ]);
+    expect(patch.blocks.map((block) => block.type)).toEqual(gateOneStructureFixture.blocks.map((block) => block.type));
+    expect(JSON.stringify(patch.blocks)).toContain("Restoration checks");
+    expect(JSON.stringify(patch.blocks)).toContain("fig:source-scan");
   });
 });

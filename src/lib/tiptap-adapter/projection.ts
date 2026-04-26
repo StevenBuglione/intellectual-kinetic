@@ -63,11 +63,83 @@ function blockToTiptapNode(block: CanonicalBlock): TiptapNode {
     };
   }
 
+  if (block.type === "list") {
+    return {
+      type: block.ordered ? "orderedList" : "bulletList",
+      attrs: { ...canonicalAttrs, ordered: block.ordered },
+      content: block.items.map((item) => ({
+        type: "listItem",
+        attrs: { canonicalItemId: item.id },
+        content: [{ type: "paragraph", content: inlineToTiptap(item.children) }],
+      })),
+    };
+  }
+
+  if (block.type === "table") {
+    return {
+      type: "table",
+      attrs: {
+        ...canonicalAttrs,
+        label: block.label,
+        captionText: block.caption?.map(inlineToPlainText).join(""),
+      },
+      content: block.rows.map((row) => ({
+        type: "tableRow",
+        attrs: { canonicalRowId: row.id },
+        content: row.cells.map((cell) => ({
+          type: cell.header ? "tableHeader" : "tableCell",
+          attrs: {
+            canonicalCellId: cell.id,
+            colspan: cell.colspan,
+            rowspan: cell.rowspan,
+          },
+          content: [{ type: "paragraph", content: inlineToTiptap(cell.children) }],
+        })),
+      })),
+    };
+  }
+
+  if (block.type === "figure") {
+    return {
+      type: "blockquote",
+      attrs: {
+        ...canonicalAttrs,
+        canonicalBlockType: "figure",
+        altText: block.altText,
+        label: block.label,
+      },
+      content: [{ type: "paragraph", content: inlineToTiptap(block.caption ?? [{ type: "text", text: block.altText }]) }],
+    };
+  }
+
+  if (block.type === "page_break") {
+    return {
+      type: "horizontalRule",
+      attrs: { ...canonicalAttrs, canonicalBlockType: "page_break" },
+    };
+  }
+
   return {
     type: "paragraph",
     attrs: canonicalAttrs,
     content: inlineToTiptap(block.children),
   };
+}
+
+function inlineToPlainText(child: CanonicalInline): string {
+  if (child.type === "text") {
+    return child.text;
+  }
+
+  if (child.type === "math_inline") {
+    return child.tex;
+  }
+
+  if (child.type === "citation") {
+    return `@${child.key}`;
+  }
+
+  return `[[${child.target}]]`;
 }
 
 function inlineToTiptap(children: CanonicalInline[]): TiptapNode[] {
@@ -129,6 +201,17 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
   }
 
   if (node.type === "blockquote") {
+    if (node.attrs?.canonicalBlockType === "figure") {
+      return {
+        id,
+        type: "figure",
+        altText: String(node.attrs?.altText ?? ""),
+        label: typeof node.attrs?.label === "string" ? node.attrs.label : undefined,
+        caption: tiptapInlineToCanonical(node.content?.flatMap((child) => child.content ?? []) ?? []),
+        reviewState,
+      };
+    }
+
     return {
       id,
       type: "theorem",
@@ -144,6 +227,49 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
       id,
       type: "paragraph",
       children: tiptapInlineToCanonical(node.content ?? []),
+      reviewState,
+    };
+  }
+
+  if (node.type === "bulletList" || node.type === "orderedList") {
+    return {
+      id,
+      type: "list",
+      ordered: node.type === "orderedList",
+      items: (node.content ?? []).map((item, index) => ({
+        id: String(item.attrs?.canonicalItemId ?? `${id}-item-${index + 1}`),
+        children: tiptapInlineToCanonical(item.content?.flatMap((child) => child.content ?? []) ?? []),
+      })),
+      reviewState,
+    };
+  }
+
+  if (node.type === "table") {
+    return {
+      id,
+      type: "table",
+      label: typeof node.attrs?.label === "string" ? node.attrs.label : undefined,
+      caption: typeof node.attrs?.captionText === "string"
+        ? [{ type: "text", text: node.attrs.captionText }]
+        : undefined,
+      rows: (node.content ?? []).map((row, rowIndex) => ({
+        id: String(row.attrs?.canonicalRowId ?? `${id}-row-${rowIndex + 1}`),
+        cells: (row.content ?? []).map((cell, cellIndex) => ({
+          id: String(cell.attrs?.canonicalCellId ?? `${id}-cell-${rowIndex + 1}-${cellIndex + 1}`),
+          header: cell.type === "tableHeader",
+          colspan: typeof cell.attrs?.colspan === "number" ? cell.attrs.colspan : undefined,
+          rowspan: typeof cell.attrs?.rowspan === "number" ? cell.attrs.rowspan : undefined,
+          children: tiptapInlineToCanonical(cell.content?.flatMap((child) => child.content ?? []) ?? []),
+        })),
+      })),
+      reviewState,
+    };
+  }
+
+  if (node.type === "horizontalRule" && node.attrs?.canonicalBlockType === "page_break") {
+    return {
+      id,
+      type: "page_break",
       reviewState,
     };
   }

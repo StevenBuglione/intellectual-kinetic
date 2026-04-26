@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { serializeCanonicalDocumentToLatex } from "../serializer";
 
@@ -39,5 +40,17 @@ describe("deterministic LaTeX serializer", () => {
         code: "unresolved-reference",
       }),
     ]);
+  });
+
+  it("serializes Gate 1 structures into deterministic LaTeX", () => {
+    const result = serializeCanonicalDocumentToLatex(gateOneStructureFixture);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.source).toContain("\\textbullet{} Recover list semantics");
+    expect(result.source).toContain("\\textbf{Restoration checks}\\label{tab:checks}");
+    expect(result.source).toContain("\\begin{flushleft}");
+    expect(result.source).toContain("Check \\hspace{2em} Status");
+    expect(result.source).toContain("\\IkFigurePlaceholder{Source scan placeholder}{Source scan placeholder\\label{fig:source-scan}}");
+    expect(result.source).toContain("\\newpage");
   });
 });

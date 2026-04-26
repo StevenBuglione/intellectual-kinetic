@@ -34,4 +34,61 @@ describe("canonical document foundation", () => {
     expect(normalized.updatedAt).toMatch(/T/);
     expect("tiptap" in normalized).toBe(false);
   });
+
+  it("validates Gate 1 list, table, figure, and page-break structures", () => {
+    const result = validateCanonicalDocument({
+      ...restorationFoundationFixture,
+      blocks: [
+        ...restorationFoundationFixture.blocks,
+        {
+          id: "block-list",
+          type: "list",
+          ordered: false,
+          items: [
+            { id: "item-1", children: [{ type: "text", text: "Recover tables" }] },
+            { id: "item-2", children: [{ type: "text", text: "Verify rendered pages" }] },
+          ],
+          reviewState: "needs_review",
+        },
+        {
+          id: "block-table",
+          type: "table",
+          caption: [{ type: "text", text: "Restoration checks" }],
+          label: "tab:checks",
+          rows: [
+            {
+              id: "row-1",
+              cells: [
+                { id: "cell-1", children: [{ type: "text", text: "Check" }], header: true },
+                { id: "cell-2", children: [{ type: "text", text: "Status" }], header: true },
+              ],
+            },
+            {
+              id: "row-2",
+              cells: [
+                { id: "cell-3", children: [{ type: "text", text: "PDF image" }] },
+                { id: "cell-4", children: [{ type: "text", text: "Verified" }] },
+              ],
+            },
+          ],
+          reviewState: "approved",
+        },
+        {
+          id: "block-figure",
+          type: "figure",
+          altText: "Placeholder source scan",
+          caption: [{ type: "text", text: "Source scan placeholder" }],
+          label: "fig:scan",
+          reviewState: "needs_review",
+        },
+        {
+          id: "block-break",
+          type: "page_break",
+          reviewState: "approved",
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+  });
 });
