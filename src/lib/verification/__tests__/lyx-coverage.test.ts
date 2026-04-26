@@ -39,13 +39,17 @@ describe("LyX parity coverage registry", () => {
       oracleFixtures: lyxOracleFixtures,
     });
 
-    expect(report.status).toBe("passed");
+    expect(report.status, JSON.stringify(report.errors, null, 2)).toBe("passed");
     expect(report.matrixCapabilityCount).toBeGreaterThan(50);
     expect(report.checkedCapabilityCount).toBeGreaterThan(45);
     expect(report.errors).toEqual([]);
     expect(report.missingMappings).toEqual([]);
     expect(report.missingFixtureMappings).toEqual([]);
     expect(report.oracleOnlyBlockingCapabilities).toEqual([]);
+    expect(report.unknownOracleFeatureIds).toEqual([]);
+    expect(report.missingRequiredOracleFixtureMappings).toEqual([]);
+    expect(report.missingOracleExemptions).toEqual([]);
+    expect(report.mismatchedOracleFixtureFeatureMappings).toEqual([]);
 
     expect(report.coverageById["sectioning-hierarchy"]).toMatchObject({
       status: "supported",
@@ -110,5 +114,70 @@ describe("LyX parity coverage registry", () => {
 
     expect(oracleOnlyReport.status).toBe("failed");
     expect(oracleOnlyReport.oracleOnlyBlockingCapabilities).toContain("inline-and-display-math");
+  });
+
+  it("fails when oracle fixtures expose unknown LyX feature IDs or required oracle evidence is missing", () => {
+    const unknownOracleFeatureReport = runLyxCoverageVerification({
+      matrixMarkdown,
+      registry: lyxParityCoverageRegistry,
+      oracleFixtures: [
+        ...lyxOracleFixtures,
+        {
+          id: "lyx-unknown-feature",
+          kind: "lyx-export-regression",
+          lyxPath: "unknown.lyx",
+          expectedText: [],
+          lyxRequiredSource: [],
+          featureIds: ["not-in-the-matrix"],
+        },
+      ],
+    });
+
+    expect(unknownOracleFeatureReport.status).toBe("failed");
+    expect(unknownOracleFeatureReport.unknownOracleFeatureIds).toContain("not-in-the-matrix");
+
+    const withoutOracle = lyxParityCoverageRegistry.map((entry) => (
+      entry.capabilityId === "inline-emphasis-styles"
+        ? { ...entry, lyxOracleFixtureIds: [], oracleExemption: undefined }
+        : entry
+    ));
+    const missingOracleReport = runLyxCoverageVerification({
+      matrixMarkdown,
+      registry: withoutOracle,
+      oracleFixtures: lyxOracleFixtures,
+    });
+
+    expect(missingOracleReport.status).toBe("failed");
+    expect(missingOracleReport.missingRequiredOracleFixtureMappings).toContain("inline-emphasis-styles");
+
+    const missingExemption = lyxParityCoverageRegistry.map((entry) => (
+      entry.capabilityId === "undo-redo-history"
+        ? { ...entry, lyxOracleFixtureIds: [], oracleExemption: undefined }
+        : entry
+    ));
+    const missingExemptionReport = runLyxCoverageVerification({
+      matrixMarkdown,
+      registry: missingExemption,
+      oracleFixtures: lyxOracleFixtures,
+    });
+
+    expect(missingExemptionReport.status).toBe("failed");
+    expect(missingExemptionReport.missingOracleExemptions).toContain("undo-redo-history");
+
+    const mismatchedOracleFixture = lyxParityCoverageRegistry.map((entry) => (
+      entry.capabilityId === "sectioning-hierarchy"
+        ? { ...entry, lyxOracleFixtureIds: ["lyx-upstream-formal-booktabs-table"] }
+        : entry
+    ));
+    const mismatchReport = runLyxCoverageVerification({
+      matrixMarkdown,
+      registry: mismatchedOracleFixture,
+      oracleFixtures: lyxOracleFixtures,
+    });
+
+    expect(mismatchReport.status).toBe("failed");
+    expect(mismatchReport.mismatchedOracleFixtureFeatureMappings).toContain(
+      "sectioning-hierarchy:lyx-upstream-formal-booktabs-table",
+    );
   });
 });

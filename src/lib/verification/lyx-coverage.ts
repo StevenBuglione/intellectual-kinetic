@@ -35,6 +35,7 @@ export type LyxParityCoverageEntry = {
   lyxOracleFixtureIds: string[];
   verificationFixtureIds: string[];
   gaps: string[];
+  oracleExemption?: string;
 };
 
 export type LyxCoverageVerificationReport = {
@@ -49,6 +50,10 @@ export type LyxCoverageVerificationReport = {
   staleRegistryMappings: string[];
   unknownCanonicalFixtureIds: string[];
   unknownOracleFixtureIds: string[];
+  unknownOracleFeatureIds: string[];
+  missingRequiredOracleFixtureMappings: string[];
+  missingOracleExemptions: string[];
+  mismatchedOracleFixtureFeatureMappings: string[];
 };
 
 const CANONICAL_FIXTURE_IDS = new Set([
@@ -117,6 +122,7 @@ function coverage(
     lyxOracleFixtureIds?: string[];
     verificationFixtureIds?: string[];
     gaps?: string[];
+    oracleExemption?: string;
   },
 ): LyxParityCoverageEntry {
   return {
@@ -131,6 +137,7 @@ function coverage(
     lyxOracleFixtureIds: options.lyxOracleFixtureIds ?? [],
     verificationFixtureIds: options.verificationFixtureIds ?? [],
     gaps: options.gaps ?? [],
+    oracleExemption: options.oracleExemption,
   };
 }
 
@@ -172,6 +179,7 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     latexSerializerMapping: ["module-dependent package and macro emission"],
     previewRendererMapping: ["compiled package-sensitive PDF output"],
     canonicalFixtureIds: ["fixture-gate-four-lyx-core", "fixture-gate-five-lyx-breadth"],
+    lyxOracleFixtureIds: ["lyx-oracle-parity-coverage-breadth"],
     verificationFixtureIds: [...serializerTests, ...compilerTests],
     gaps: ["Modules are persisted and serialized for known fixtures, not discovered from the full LyX module registry."],
   }),
@@ -186,7 +194,9 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     verificationFixtureIds: [...serializerTests, ...visualTests],
     gaps: ["Class-defined custom metadata fields still need a layout-driven registry."],
   }),
-  productFixtureCoverage("custom-preamble-edit", ["fixture-gate-four-lyx-core"], []),
+  productFixtureCoverage("custom-preamble-edit", ["fixture-gate-four-lyx-core"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
   coverage("master-document-linking", {
     status: "unsupported",
     implementation: {
@@ -217,18 +227,28 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     verificationFixtureIds: [...projectionTests, ...serializerTests, ...compilerTests, ...visualTests],
     gaps: [],
   }),
-  productFixtureCoverage("abstract-block", ["fixture-gate-two-scholarly"], []),
+  productFixtureCoverage("abstract-block", ["fixture-gate-two-scholarly"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
   productFixtureCoverage("titlepage-and-frontmatter", ["fixture-gate-five-lyx-breadth"], [
     "lyx-upstream-language-index",
     "lyx-oracle-master-child-branch",
   ]),
-  productFixtureCoverage("quotation-verse-blocks", ["fixture-gate-two-scholarly"], []),
+  productFixtureCoverage("quotation-verse-blocks", ["fixture-gate-two-scholarly"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
   productFixtureCoverage("branch-conditional-content", ["fixture-gate-five-lyx-breadth"], [
     "lyx-oracle-master-child-branch",
   ]),
-  productFixtureCoverage("inline-emphasis-styles", ["fixture-restoration-foundation"], []),
-  productFixtureCoverage("font-family-size-selection", ["fixture-gate-three-layout"], []),
-  productFixtureCoverage("text-color-and-highlighting", ["fixture-gate-three-layout"], []),
+  productFixtureCoverage("inline-emphasis-styles", ["fixture-restoration-foundation"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
+  productFixtureCoverage("font-family-size-selection", ["fixture-gate-three-layout"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
+  productFixtureCoverage("text-color-and-highlighting", ["fixture-gate-three-layout"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
   coverage("change-tracking", {
     status: "partial",
     implementation: {
@@ -242,6 +262,7 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     latexSerializerMapping: [],
     previewRendererMapping: ["review-state editor surfaces"],
     canonicalFixtureIds: ["fixture-gate-three-layout"],
+    lyxOracleFixtureIds: ["lyx-oracle-parity-coverage-breadth"],
     verificationFixtureIds: [...workspaceTests, "src/lib/editor-core/__tests__/canonical-document.test.ts"],
     gaps: ["Author-attributed insert/delete change tracking is not yet serialized as LyX-equivalent change output."],
   }),
@@ -250,12 +271,18 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     "lyx-restoration-foundation",
     "lyx-current-upstream-complicated-table",
   ]),
-  productFixtureCoverage("equation-numbering-and-labels", ["fixture-gate-two-scholarly"], []),
-  productFixtureCoverage("math-structures-matrices-alignment", ["fixture-gate-two-scholarly"], []),
+  productFixtureCoverage("equation-numbering-and-labels", ["fixture-gate-two-scholarly"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
+  productFixtureCoverage("math-structures-matrices-alignment", ["fixture-gate-two-scholarly"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
   productFixtureCoverage("theorem-like-environments", ["fixture-restoration-foundation", "fixture-gate-two-scholarly"], [
     "lyx-restoration-foundation",
   ]),
-  productFixtureCoverage("math-macros-and-decorations", ["fixture-gate-two-scholarly"], []),
+  productFixtureCoverage("math-macros-and-decorations", ["fixture-gate-two-scholarly"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
   coverage("math-extern-cas", {
     status: "unsupported",
     implementation: {
@@ -296,11 +323,19 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     "lyx-upstream-figure-caption-cprotect",
     "lyx-oracle-export-breadth",
   ]),
-  productFixtureCoverage("wrap-margin-floats", ["fixture-gate-three-layout"], []),
+  productFixtureCoverage("wrap-margin-floats", ["fixture-gate-three-layout"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
 
-  productFixtureCoverage("label-insert", ["fixture-gate-two-scholarly", "fixture-gate-four-lyx-core"], []),
-  productFixtureCoverage("cross-reference-insert", ["fixture-gate-two-scholarly"], []),
-  productFixtureCoverage("table-of-contents-and-lists", ["fixture-gate-five-lyx-breadth"], []),
+  productFixtureCoverage("label-insert", ["fixture-gate-two-scholarly", "fixture-gate-four-lyx-core"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
+  productFixtureCoverage("cross-reference-insert", ["fixture-gate-two-scholarly"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
+  productFixtureCoverage("table-of-contents-and-lists", ["fixture-gate-five-lyx-breadth"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
   productFixtureCoverage("bibliography-insert-manage", ["fixture-gate-two-scholarly"], ["lyx-oracle-export-breadth"]),
   productFixtureCoverage("citation-insert-style-variants", ["fixture-gate-four-lyx-core"], ["lyx-oracle-export-breadth"]),
   productFixtureCoverage("bibliography-output-control", ["fixture-gate-two-scholarly"], ["lyx-oracle-export-breadth"]),
@@ -323,10 +358,18 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     gaps: ["Deferred index-property macro support remains outside the current fixture corpus."],
   }),
 
-  productFixtureCoverage("page-breaks-and-flow-breaks", ["fixture-gate-one-structure", "fixture-gate-three-layout"], []),
-  productFixtureCoverage("multicolumn-and-landscape-modes", ["fixture-gate-three-layout"], []),
-  productFixtureCoverage("headers-footers-page-style", ["fixture-gate-three-layout"], []),
-  productFixtureCoverage("spacing-margins-layout-options", ["fixture-gate-three-layout"], []),
+  productFixtureCoverage("page-breaks-and-flow-breaks", ["fixture-gate-one-structure", "fixture-gate-three-layout"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
+  productFixtureCoverage("multicolumn-and-landscape-modes", ["fixture-gate-three-layout"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
+  productFixtureCoverage("headers-footers-page-style", ["fixture-gate-three-layout"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
+  productFixtureCoverage("spacing-margins-layout-options", ["fixture-gate-three-layout"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
 
   productFixtureCoverage("multilingual-language-selection", ["fixture-gate-five-lyx-breadth"], [
     "lyx-upstream-language-index",
@@ -353,7 +396,9 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     verificationFixtureIds: ["src/lib/verification/__tests__/lyx-coverage.test.ts"],
     gaps: ["Deferred: real CJK/RTL editing, engine selection, and PDF visual parity are not implemented."],
   }),
-  productFixtureCoverage("multilingual-captions-and-local-overrides", ["fixture-gate-five-lyx-breadth"], []),
+  productFixtureCoverage("multilingual-captions-and-local-overrides", ["fixture-gate-five-lyx-breadth"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
 
   productFixtureCoverage("latex-export", coreDocumentFixtures, [
     "lyx-restoration-foundation",
@@ -375,6 +420,7 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     canonicalFixtureIds: coreDocumentFixtures,
     verificationFixtureIds: ["src/lib/editor-core/__tests__/canonical-document.test.ts"],
     gaps: ["DocBook export itself is not implemented; canonical semantics are tracked for future export."],
+    oracleExemption: "DocBook is a non-LaTeX export target, so the LaTeX oracle cannot produce a meaningful source signature.",
   }),
   coverage("xhtml-export", {
     status: "partial",
@@ -391,13 +437,19 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     canonicalFixtureIds: coreDocumentFixtures,
     verificationFixtureIds: ["src/lib/verification/editor-html-renderer.ts", ...visualTests],
     gaps: ["Dedicated XHTML export is not implemented; editor HTML renderer is only a verification surface."],
+    oracleExemption: "XHTML is a non-LaTeX export target, so the LaTeX oracle cannot produce a meaningful source signature.",
   }),
   productFixtureCoverage("export-robustness-and-recovery", coreDocumentFixtures, [
     "lyx-current-upstream-complicated-table",
   ]),
 
-  productFixtureCoverage("template-selection", ["fixture-gate-four-lyx-core", "fixture-gate-five-lyx-breadth"], []),
-  productFixtureCoverage("custom-semantic-insets", ["fixture-gate-four-lyx-core"], []),
+  productFixtureCoverage("template-selection", ["fixture-gate-four-lyx-core", "fixture-gate-five-lyx-breadth"], [
+    "lyx-upstream-vcs-info-export",
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
+  productFixtureCoverage("custom-semantic-insets", ["fixture-gate-four-lyx-core"], [
+    "lyx-oracle-parity-coverage-breadth",
+  ]),
   coverage("customization-of-bindings-and-ui-surfaces", {
     status: "unsupported",
     implementation: {
@@ -433,6 +485,7 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
       "src/lib/tiptap-adapter/__tests__/canonical-attributes.test.ts",
     ],
     gaps: ["Dedicated user-facing history UI and collaborative history model are not complete."],
+    oracleExemption: "Undo/redo is editor state behavior and has no stable LaTeX export signature in LyX oracle output.",
   }),
   coverage("find-replace", {
     status: "partial",
@@ -449,6 +502,7 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     canonicalFixtureIds: [],
     verificationFixtureIds: workspaceTests,
     gaps: ["Search/replace command behavior is not yet implemented beyond shell-level affordance."],
+    oracleExemption: "Find/replace is interactive editor behavior and has no stable LaTeX export signature.",
   }),
   coverage("spellcheck-and-thesaurus", {
     status: "partial",
@@ -465,6 +519,7 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     canonicalFixtureIds: [],
     verificationFixtureIds: workspaceTests,
     gaps: ["Spellcheck and thesaurus providers are not wired."],
+    oracleExemption: "Spellcheck/thesaurus is provider-backed editor behavior and has no stable LaTeX export signature.",
   }),
   coverage("paste-special", {
     status: "partial",
@@ -481,6 +536,7 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     canonicalFixtureIds: ["fixture-restoration-foundation"],
     verificationFixtureIds: [...projectionTests, ...compilerTests],
     gaps: ["Format-specific HTML/LaTeX/PDF/image paste conversion is not implemented."],
+    oracleExemption: "Paste-special is an import/clipboard behavior; LyX export output cannot prove clipboard conversion fidelity.",
   }),
   coverage("multi-view-bookmarks-fullscreen", {
     status: "partial",
@@ -497,6 +553,7 @@ export const lyxParityCoverageRegistry: LyxParityCoverageEntry[] = [
     canonicalFixtureIds: [],
     verificationFixtureIds: workspaceTests,
     gaps: ["Bookmarks, split editing, and fullscreen workflows remain incomplete."],
+    oracleExemption: "Multi-view, bookmarks, and fullscreen are editor workflow surfaces with no stable LaTeX export signature.",
   }),
   coverage("statistics-preferences-reconfigure", {
     status: "unsupported",
@@ -573,6 +630,16 @@ export function runLyxCoverageVerification({
   const oracleOnlyBlockingCapabilities: string[] = [];
   const unknownCanonicalFixtureIds: string[] = [];
   const unknownOracleFixtureIds: string[] = [];
+  const missingRequiredOracleFixtureMappings: string[] = [];
+  const missingOracleExemptions: string[] = [];
+  const mismatchedOracleFixtureFeatureMappings: string[] = [];
+  const oracleFeatureIds = new Set(oracleFixtures.flatMap((fixture) => fixture.featureIds));
+  const oracleFeatureIdsByFixtureId = Object.fromEntries(
+    oracleFixtures.map((fixture) => [fixture.id, new Set(fixture.featureIds)]),
+  );
+  const unknownOracleFeatureIds = [...oracleFeatureIds]
+    .filter((featureId) => !matrixIds.has(featureId) && !registryById[featureId])
+    .sort();
 
   for (const entry of blockingEntries) {
     const coverageEntry = registryById[entry.featureId];
@@ -602,6 +669,17 @@ export function runLyxCoverageVerification({
     if (onlyOracleEvidence && lacksAstAndSerializer) {
       oracleOnlyBlockingCapabilities.push(entry.featureId);
     }
+
+    if (coverageEntry.lyxOracleFixtureIds.length === 0) {
+      if (coverageEntry.oracleExemption) {
+        continue;
+      }
+      if (requiresOracleEvidence(entry)) {
+        missingRequiredOracleFixtureMappings.push(entry.featureId);
+      } else {
+        missingOracleExemptions.push(entry.featureId);
+      }
+    }
   }
 
   for (const entry of registry) {
@@ -613,6 +691,8 @@ export function runLyxCoverageVerification({
     for (const fixtureId of entry.lyxOracleFixtureIds) {
       if (!oracleFixtureIds.has(fixtureId)) {
         unknownOracleFixtureIds.push(`${entry.capabilityId}:${fixtureId}`);
+      } else if (!oracleFeatureIdsByFixtureId[fixtureId]?.has(entry.capabilityId)) {
+        mismatchedOracleFixtureFeatureMappings.push(`${entry.capabilityId}:${fixtureId}`);
       }
     }
     for (const fixtureId of entry.verificationFixtureIds) {
@@ -633,6 +713,10 @@ export function runLyxCoverageVerification({
     ...staleRegistryMappings.map((id) => `Coverage registry entry is not present in LyX matrix: ${id}`),
     ...unknownCanonicalFixtureIds.map((id) => `Unknown canonical/verification fixture id: ${id}`),
     ...unknownOracleFixtureIds.map((id) => `Unknown LyX oracle fixture id: ${id}`),
+    ...unknownOracleFeatureIds.map((id) => `LyX oracle fixture feature ID is not represented in the matrix/registry: ${id}`),
+    ...missingRequiredOracleFixtureMappings.map((id) => `Missing required LyX oracle fixture mapping: ${id}`),
+    ...missingOracleExemptions.map((id) => `Missing LyX oracle exemption reason: ${id}`),
+    ...mismatchedOracleFixtureFeatureMappings.map((id) => `LyX oracle fixture does not declare mapped feature ID: ${id}`),
   ];
 
   return {
@@ -647,6 +731,10 @@ export function runLyxCoverageVerification({
     staleRegistryMappings,
     unknownCanonicalFixtureIds,
     unknownOracleFixtureIds,
+    unknownOracleFeatureIds,
+    missingRequiredOracleFixtureMappings,
+    missingOracleExemptions,
+    mismatchedOracleFixtureFeatureMappings,
   };
 }
 
@@ -660,4 +748,15 @@ function isLyxCapabilitySequence(value: string): value is LyxCapabilitySequence 
 
 function isUnimplemented(status: LyxImplementationStatus): boolean {
   return status === "unsupported" || status === "not-applicable";
+}
+
+function requiresOracleEvidence(entry: LyxCapabilityMatrixEntry): boolean {
+  const exportImpact = `${entry.astImpact} ${entry.latexRenderImpact}`.toLowerCase();
+  return (
+    exportImpact.includes("serializer")
+    || exportImpact.includes("preamble")
+    || exportImpact.includes("compile")
+    || exportImpact.includes("preview")
+    || exportImpact.includes("round-trip")
+  );
 }

@@ -1,0 +1,314 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options false
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding utf8
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package booktabs 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\begin_preamble
+\usepackage{xcolor}
+\usepackage{soul}
+\usepackage{ulem}
+\usepackage{wrapfig}
+\usepackage{multicol}
+\usepackage{pdflscape}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage[margin=1in]{geometry}
+\newcommand{\IKOraclePreamble}{preamble active}
+\newcommand{\IKAffiliation}[1]{\textit{#1}}
+\end_preamble
+\end_header
+
+\begin_body
+
+\begin_layout Section
+Oracle parity coverage breadth
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+\backslash
+IKOraclePreamble{}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+begin{abstract}Oracle abstract block.
+\backslash
+end{abstract}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+begin{quote}Oracle quote block.
+\backslash
+end{quote}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+begin{verse}Oracle verse block.
+\backslash
+end{verse}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+emph{emphasis} 
+\backslash
+textbf{strong} 
+\backslash
+texttt{code} 
+\backslash
+textsc{small caps} 
+\backslash
+sout{tracked deletion}
+\end_layout
+
+\begin_layout Plain Layout
+{
+\backslash
+Large
+\backslash
+sffamily Font family oracle}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+textcolor{red}{red text} 
+\backslash
+colorbox{yellow}{highlighted text}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+begin{equation}
+\backslash
+label{eq:oracle-numbered} a=b+c 
+\backslash
+end{equation}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+begin{align} x&=y
+\backslash
+
+\backslash
+ z&=w 
+\backslash
+end{align}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+[
+\backslash
+begin{bmatrix}1&0
+\backslash
+
+\backslash
+0&1
+\backslash
+end{bmatrix}
+\backslash
+]
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+[
+\backslash
+hat{x}+
+\backslash
+vec{v}+
+\backslash
+frac{1}{2}+
+\backslash
+sum_{i=1}^{n} i
+\backslash
+]
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+label{sec:oracle-label} Reference 
+\backslash
+ref{sec:oracle-label} and equation 
+\backslash
+ref{eq:oracle-numbered}.
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+tableofcontents
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+listoffigures
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+listoftables
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+newpage
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+clearpage
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+begin{multicols}{2}Oracle multicolumn content.
+\backslash
+end{multicols}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+begin{landscape}Oracle landscape content.
+\backslash
+end{landscape}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+pagestyle{fancy}
+\backslash
+fancyhead[L]{Oracle header}
+\backslash
+fancyfoot[R]{Oracle footer}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+onehalfspacing
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+foreignlanguage{spanish}{Figura oracle}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+begin{wrapfigure}{r}{0.25
+\backslash
+linewidth}Wrap oracle
+\backslash
+end{wrapfigure}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+marginpar{Margin oracle}
+\end_layout
+
+\begin_layout Plain Layout
+
+\backslash
+IKAffiliation{Oracle institute}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
