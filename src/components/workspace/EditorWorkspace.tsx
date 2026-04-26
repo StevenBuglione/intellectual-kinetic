@@ -55,7 +55,11 @@ import {
 } from "@/lib/editor-core/document-workflows";
 import { canonicalBlockListsEqual, mergeCanonicalPatchBlocks } from "@/lib/editor-core/patch-merge";
 import { compareCanonicalDocumentToPdfText } from "@/lib/editor-core/plaintext";
-import type { CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
+import type {
+  CanonicalDocument,
+  CanonicalInline,
+  CanonicalWorkspaceDocumentTab,
+} from "@/lib/editor-core/types";
 import type { LatexCompileResult } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
 import { resolveEditorParitySurface } from "@/lib/layout/parity-surface";
@@ -76,11 +80,7 @@ type DocumentOutlineHeading = {
   title: string;
 };
 
-type DocumentTab = {
-  id: string;
-  label: string;
-  blocks: CanonicalDocument["blocks"];
-};
+type DocumentTab = CanonicalWorkspaceDocumentTab;
 
 type LeftWorkspacePanel = "outline" | "review" | "statistics" | "paste";
 
@@ -130,19 +130,15 @@ const FindHighlightExtension = Extension.create({
 });
 
 export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
-  const [document, setDocument] = useState(initialDocument);
+  const [document, setDocument] = useState(() => activateWorkspaceDocument(initialDocument));
   const documentRef = useRef(document);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [workflowPanel, setWorkflowPanel] = useState<"find" | null>(null);
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
   const [leftPanel, setLeftPanel] = useState<LeftWorkspacePanel>("outline");
-  const [documentTabs, setDocumentTabs] = useState<DocumentTab[]>([{
-    id: "tab-1",
-    label: "Tab 1",
-    blocks: initialDocument.blocks,
-  }]);
-  const [activeDocumentTabId, setActiveDocumentTabId] = useState("tab-1");
+  const [documentTabs, setDocumentTabs] = useState<DocumentTab[]>(() => restoreDocumentTabs(initialDocument).tabs);
+  const [activeDocumentTabId, setActiveDocumentTabId] = useState(() => restoreDocumentTabs(initialDocument).activeDocumentTabId);
   const [findText, setFindText] = useState("");
   const [replaceText, setReplaceText] = useState("");
   const [matchCase, setMatchCase] = useState(false);
@@ -328,19 +324,22 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   }
 
   async function saveDocument() {
+    const documentToSave = documentWithWorkspaceTabs(documentRef.current, documentTabs, activeDocumentTabId);
     setSaveState("saving");
     const response = await fetch("/api/documents/default", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ document }),
+      body: JSON.stringify({ document: documentToSave }),
     });
 
     if (response.ok) {
       const payload = (await response.json()) as { document: CanonicalDocument };
-      setDocument(payload.document);
-      setDocumentTabs((tabs) => tabs.map((tab) => (
-        tab.id === activeDocumentTabId ? { ...tab, blocks: payload.document.blocks } : tab
-      )));
+      const nextDocument = activateWorkspaceDocument(payload.document);
+      const restoredTabs = restoreDocumentTabs(payload.document);
+      documentRef.current = nextDocument;
+      setDocument(nextDocument);
+      setDocumentTabs(restoredTabs.tabs);
+      setActiveDocumentTabId(restoredTabs.activeDocumentTabId);
       setSaveState("saved");
       window.setTimeout(() => setSaveState("idle"), 1600);
     } else {
@@ -1268,6 +1267,84 @@ function inlineTextContent(children: CanonicalInline[]): string {
 
     return "";
   }).join("").trim();
+}
+
+function restoreDocumentTabs(document: CanonicalDocument): {
+  activeDocumentTabId: string;
+  tabs: DocumentTab[];
+} {
+  const workspace = document.metadata.workspace;
+  if (workspace && workspace.documentTabs.length > 0) {
+    const activeDocumentTabId = workspace.documentTabs.some((tab) => tab.id === workspace.activeDocumentTabId)
+      ? workspace.activeDocumentTabId
+      : workspace.documentTabs[0].id;
+
+    return {
+      activeDocumentTabId,
+      tabs: workspace.documentTabs.map((tab) => ({
+        id: tab.id,
+        label: tab.label,
+        blocks: tab.blocks,
+      })),
+    };
+  }
+
+  return {
+    activeDocumentTabId: "tab-1",
+    tabs: [{
+      id: "tab-1",
+      label: "Tab 1",
+      blocks: document.blocks,
+    }],
+  };
+}
+
+function activateWorkspaceDocument(document: CanonicalDocument): CanonicalDocument {
+  const { activeDocumentTabId, tabs } = restoreDocumentTabs(document);
+  const activeTab = tabs.find((tab) => tab.id === activeDocumentTabId);
+
+  if (!activeTab) {
+    return document;
+  }
+
+  return {
+    ...document,
+    blocks: activeTab.blocks,
+    metadata: {
+      ...document.metadata,
+      workspace: {
+        activeDocumentTabId,
+        documentTabs: tabs,
+      },
+    },
+  };
+}
+
+function documentWithWorkspaceTabs(
+  document: CanonicalDocument,
+  tabs: DocumentTab[],
+  activeDocumentTabId: string,
+): CanonicalDocument {
+  const documentTabs = tabs.map((tab) => ({
+    ...tab,
+    blocks: tab.id === activeDocumentTabId ? document.blocks : tab.blocks,
+  }));
+  const activeTab = documentTabs.find((tab) => tab.id === activeDocumentTabId) ?? documentTabs[0];
+  if (!activeTab) {
+    return document;
+  }
+
+  return {
+    ...document,
+    blocks: activeTab.blocks,
+    metadata: {
+      ...document.metadata,
+      workspace: {
+        activeDocumentTabId: activeTab.id,
+        documentTabs,
+      },
+    },
+  };
 }
 
 function createEmptyTabBlocks(tabNumber: number): CanonicalDocument["blocks"] {

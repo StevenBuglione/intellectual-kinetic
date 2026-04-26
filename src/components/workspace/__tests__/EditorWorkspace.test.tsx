@@ -331,6 +331,48 @@ describe("EditorWorkspace", () => {
     expect(screen.getByRole("button", { name: "Delete Tab 1" })).toBeDisabled();
   });
 
+  it("persists and restores document tabs through canonical metadata", async () => {
+    const savedDocuments: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const payload = JSON.parse(String(init?.body ?? "{}")) as { document: unknown };
+      savedDocuments.push(payload.document);
+
+      return new Response(JSON.stringify({ document: payload.document }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }));
+
+    const { unmount } = render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Add document tab" }));
+    await userEvent.click(screen.getByRole("button", { name: "Open paste special" }));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Paste format" }), "latex");
+    await userEvent.click(screen.getByRole("textbox", { name: "Paste source" }));
+    await userEvent.paste("\\section{Persisted Tab Section}\nPersisted tab body.");
+    await userEvent.click(screen.getByRole("button", { name: "Insert paste" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Saved")).toBeInTheDocument();
+    const savedDocument = savedDocuments.at(-1) as typeof restorationFoundationFixture;
+    expect(savedDocument.metadata.workspace?.activeDocumentTabId).toBe("tab-2");
+    expect(savedDocument.metadata.workspace?.documentTabs).toHaveLength(2);
+    expect(JSON.stringify(savedDocument.metadata.workspace?.documentTabs[0].blocks)).toContain("A Treatise on Motion");
+    expect(JSON.stringify(savedDocument.metadata.workspace?.documentTabs[1].blocks)).toContain("Persisted Tab Section");
+
+    unmount();
+    render(<EditorWorkspace initialDocument={savedDocument} />);
+
+    const restoredTabList = screen.getByRole("tablist", { name: "Document tabs" });
+    expect(within(restoredTabList).getByRole("tab", { name: "Tab 2" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { level: 1, name: "Persisted Tab Section" })).toBeInTheDocument();
+
+    await userEvent.click(within(restoredTabList).getByRole("tab", { name: "Tab 1" }));
+
+    expect(screen.getByRole("heading", { level: 1, name: "A Treatise on Motion" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Persisted Tab Section" })).not.toBeInTheDocument();
+  });
+
   it("shows document statistics and imports paste-special content into the canonical editor", async () => {
     render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
 

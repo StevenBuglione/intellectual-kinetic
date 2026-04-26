@@ -150,6 +150,21 @@ async function main() {
       ...(chromeExecutable ? { executablePath: chromeExecutable } : {}),
     });
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    const savedDocuments = [];
+    await page.route("**/api/documents/default", async (route) => {
+      if (route.request().method() !== "PUT") {
+        await route.continue();
+        return;
+      }
+
+      const payload = route.request().postDataJSON();
+      savedDocuments.push(payload.document);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ document: payload.document }),
+      });
+    });
     const consoleErrors = [];
     page.on("console", (message) => {
       if (message.type() === "error" && !message.text().includes("Failed to load resource")) {
@@ -217,6 +232,17 @@ async function main() {
     await tabPastePanel.getByRole("textbox", { name: "Paste source" }).fill("\\section{Tab Two Section}\nTab two body.");
     await tabPastePanel.getByRole("button", { name: "Insert paste" }).click();
     await page.getByRole("heading", { name: "Tab Two Section" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByText("Saved").waitFor({ state: "visible" });
+    const savedDocument = savedDocuments.at(-1);
+    if (
+      savedDocument?.metadata?.workspace?.activeDocumentTabId !== "tab-2"
+      || savedDocument.metadata.workspace.documentTabs.length !== 2
+      || !JSON.stringify(savedDocument.metadata.workspace.documentTabs[0].blocks).includes("A Treatise on Motion")
+      || !JSON.stringify(savedDocument.metadata.workspace.documentTabs[1].blocks).includes("Tab Two Section")
+    ) {
+      throw new Error(`Saved document did not persist tab metadata correctly: ${JSON.stringify(savedDocument?.metadata?.workspace)}`);
+    }
 
     const tabOne = page.getByRole("tab", { name: "Tab 1" });
     await tabOne.click();
@@ -403,7 +429,7 @@ async function main() {
       throw new Error(`Browser console errors were emitted:\n${consoleErrors.join("\n")}`);
     }
 
-    console.log("Editor workflow browser verification passed: real document tabs, collapsible left workspace, document outline navigation, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
+    console.log("Editor workflow browser verification passed: persisted real document tabs, collapsible left workspace, document outline navigation, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
   } finally {
     if (browser) {
       await browser.close();

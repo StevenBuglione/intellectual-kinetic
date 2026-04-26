@@ -31,6 +31,7 @@ export type CanonicalMetadata = {
   projectId: string;
   sourceDocumentId: string;
   reviewState: ReviewState;
+  workspace?: CanonicalWorkspaceMetadata;
 };
 
 export type Provenance = {
@@ -343,6 +344,17 @@ export type CanonicalBlock =
   | FrontMatterBlock
   | BranchBlock
   | GeneratedListBlock;
+
+export type CanonicalWorkspaceDocumentTab = {
+  id: string;
+  label: string;
+  blocks: CanonicalBlock[];
+};
+
+export type CanonicalWorkspaceMetadata = {
+  activeDocumentTabId: string;
+  documentTabs: CanonicalWorkspaceDocumentTab[];
+};
 
 export type CanonicalDocument = {
   schemaVersion: 1;

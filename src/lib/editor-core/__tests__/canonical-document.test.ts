@@ -39,6 +39,45 @@ describe("canonical document foundation", () => {
     expect("tiptap" in normalized).toBe(false);
   });
 
+  it("validates persisted document workspace tabs as canonical metadata", () => {
+    const result = validateCanonicalDocument({
+      ...restorationFoundationFixture,
+      metadata: {
+        ...restorationFoundationFixture.metadata,
+        workspace: {
+          activeDocumentTabId: "tab-2",
+          documentTabs: [
+            {
+              id: "tab-1",
+              label: "Tab 1",
+              blocks: restorationFoundationFixture.blocks,
+            },
+            {
+              id: "tab-2",
+              label: "Tab 2",
+              blocks: [
+                {
+                  id: "tab-2-title",
+                  type: "heading",
+                  level: 1,
+                  children: [{ type: "text", text: "Persisted tab" }],
+                  reviewState: "needs_review",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(result.errors.join("\n"));
+    }
+    expect(result.document.metadata.workspace?.activeDocumentTabId).toBe("tab-2");
+    expect(result.document.metadata.workspace?.documentTabs).toHaveLength(2);
+  });
+
   it("validates Gate 1 list, table, figure, and page-break structures", () => {
     const result = validateCanonicalDocument({
       ...restorationFoundationFixture,

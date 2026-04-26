@@ -266,6 +266,14 @@ const canonicalDocumentSchema = z.object({
     projectId: z.string().min(1),
     sourceDocumentId: z.string().min(1),
     reviewState: reviewStateSchema,
+    workspace: z.object({
+      activeDocumentTabId: z.string().min(1),
+      documentTabs: z.array(z.object({
+        id: z.string().min(1),
+        label: z.string().min(1),
+        blocks: z.array(blockSchema).min(1),
+      })).min(1),
+    }).optional(),
   }),
   blocks: z.array(blockSchema).min(1),
 });
@@ -281,6 +289,21 @@ export function normalizeCanonicalDocument(
     settings: {
       ...document.settings,
       modules: [...new Set(document.settings.modules)].sort(),
+    },
+    metadata: {
+      ...document.metadata,
+      workspace: document.metadata.workspace ? {
+        activeDocumentTabId: document.metadata.workspace.documentTabs.some((tab) => (
+          tab.id === document.metadata.workspace?.activeDocumentTabId
+        ))
+          ? document.metadata.workspace.activeDocumentTabId
+          : document.metadata.workspace.documentTabs[0].id,
+        documentTabs: document.metadata.workspace.documentTabs.map((tab) => ({
+          ...tab,
+          label: tab.label.trim(),
+          blocks: tab.blocks.map(normalizeBlock),
+        })),
+      } : undefined,
     },
     blocks: document.blocks.map(normalizeBlock),
   };
