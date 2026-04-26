@@ -29,10 +29,32 @@ describe("visual editor to PDF parity verification", () => {
       expect(fixture.metrics.normalizedDifference).toBeLessThanOrEqual(
         fixture.thresholds.maxNormalizedDifference,
       );
+      expect(fixture.thresholds.targetDifferentPixels).toBe(0);
+      expect(fixture.thresholds.maxDifferentPixels).toBeLessThanOrEqual(107_381);
       expect(fixture.metrics.editorWidth).toBe(816);
       expect(fixture.metrics.editorHeight).toBe(1056);
       expect(fixture.metrics.pdfWidth).toBe(816);
       expect(fixture.metrics.pdfHeight).toBe(1056);
     }
+
+    const structureFixture = report.fixtures.find((fixture) => fixture.id === "fixture-gate-one-structure");
+    expect(structureFixture?.checks).toContain("editor-pdf-page-sequence");
+    expect(structureFixture?.metrics.pageCount).toBe(2);
+    expect(structureFixture?.metrics.pages).toEqual([
+      expect.objectContaining({
+        pageNumber: 1,
+        editorWidth: 816,
+        editorHeight: 1056,
+        pdfWidth: 816,
+        pdfHeight: 1056,
+      }),
+      expect.objectContaining({
+        pageNumber: 2,
+        editorWidth: 816,
+        editorHeight: 1056,
+        pdfWidth: 816,
+        pdfHeight: 1056,
+      }),
+    ]);
   }, 90_000);
 });

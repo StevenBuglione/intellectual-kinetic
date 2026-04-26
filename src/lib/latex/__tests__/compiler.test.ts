@@ -55,6 +55,8 @@ describe("LaTeX PDF compiler", () => {
 
     expect(result.status).toBe("compiled");
     expect(result.previewImageBase64?.startsWith("iVBOR")).toBe(true);
+    expect(result.previewPageImageBase64).toHaveLength(2);
+    expect(result.previewPageImageBase64?.every((page) => page.startsWith("iVBOR"))).toBe(true);
     expect(normalizePdfParityText(result.extractedText)).toBe(
       normalizePdfParityText(canonicalDocumentToEditorText(gateOneStructureFixture)),
     );

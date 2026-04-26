@@ -1,0 +1,55 @@
+export const pageLayoutContract = {
+  page: {
+    widthPx: 816,
+    heightPx: 1056,
+    marginIn: 1,
+    marginPx: 96,
+    bottomPaddingPx: 110,
+    pdfRenderDpi: 96,
+  },
+  typography: {
+    bodyFontSizePt: 11,
+    bodyFontSizePx: 14.6667,
+    bodyLineHeight: 1.5,
+    headingOneFontSizePt: 21,
+    headingOneLineHeightPt: 26,
+    headingOneFontSizePx: 28,
+    headingTwoFontSizePt: 17,
+    headingTwoLineHeightPt: 22,
+    headingTwoFontSizePx: 22,
+    headingThreeFontSizePt: 14,
+    headingThreeLineHeightPt: 18,
+    headingThreeFontSizePx: 18,
+    mathDisplayFontSizePx: 16,
+  },
+  spacing: {
+    paragraphBottomPx: 11,
+    headingBottomPx: 14,
+    blockquoteMarginPx: 20,
+    blockquoteIndentPx: 36,
+    mathDisplayMarginPx: 18,
+    listLeftMarginPx: 24,
+    listBottomMarginPx: 14,
+    listItemBottomPx: 6,
+    figureMarginPx: 18,
+    captionBottomPx: 6,
+    pageBreakMarginPx: 28,
+  },
+  table: {
+    cellMinWidthPx: 96,
+    cellPaddingYPx: 6,
+    cellPaddingXPx: 8,
+    cellHeightIn: "0.34",
+    contentWidthIn: 6,
+  },
+  figure: {
+    placeholderMinHeightPx: 96,
+    placeholderHeightIn: "1.0",
+    placeholderWidthRatio: "0.68",
+  },
+  targets: {
+    pixelPerfectDifferentPixels: 0,
+  },
+} as const;
+
+export const pagePixelCount = pageLayoutContract.page.widthPx * pageLayoutContract.page.heightPx;

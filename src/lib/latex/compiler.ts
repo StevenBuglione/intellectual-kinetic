@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -14,6 +14,7 @@ export type LatexCompileResult = {
   artifactName: string;
   pdfBase64?: string;
   previewImageBase64?: string;
+  previewPageImageBase64?: string[];
   extractedText?: string;
   log: string;
   diagnostics: LatexDiagnostic[];
@@ -32,7 +33,7 @@ export async function compileCanonicalDocumentToPdf(
     const compile = await runPdflatex(workingDirectory);
     const pdfPath = path.join(workingDirectory, "main.pdf");
     const pdf = await readFile(pdfPath);
-    const previewImage = await renderPdfPreviewImage(pdfPath, workingDirectory);
+    const previewImages = await renderPdfPreviewImages(pdfPath, workingDirectory);
     const extractedText = await extractPdfText(pdfPath);
     await persistPreviewArtifact(artifactName, pdf);
 
@@ -40,7 +41,8 @@ export async function compileCanonicalDocumentToPdf(
       status: "compiled",
       artifactName,
       pdfBase64: pdf.toString("base64"),
-      previewImageBase64: previewImage.toString("base64"),
+      previewImageBase64: previewImages[0]?.toString("base64"),
+      previewPageImageBase64: previewImages.map((previewImage) => previewImage.toString("base64")),
       extractedText,
       log: compile.stdout + compile.stderr,
       diagnostics: serialized.diagnostics,
@@ -86,14 +88,22 @@ async function extractPdfText(pdfPath: string): Promise<string> {
   return result.stdout;
 }
 
-async function renderPdfPreviewImage(pdfPath: string, cwd: string): Promise<Buffer> {
+async function renderPdfPreviewImages(pdfPath: string, cwd: string): Promise<Buffer[]> {
   const outputPrefix = path.join(cwd, "preview-page");
-  await execFileAsync("pdftoppm", ["-png", "-singlefile", "-r", "96", pdfPath, outputPrefix], {
+  await execFileAsync("pdftoppm", ["-png", "-r", "96", pdfPath, outputPrefix], {
     timeout: 10_000,
     maxBuffer: 1024 * 1024 * 4,
   });
 
-  return readFile(`${outputPrefix}.png`);
+  const files = (await readdir(cwd))
+    .filter((file) => /^preview-page-\d+\.png$/.test(file))
+    .sort((left, right) => pageImageIndex(left) - pageImageIndex(right));
+
+  return Promise.all(files.map((file) => readFile(path.join(cwd, file))));
+}
+
+function pageImageIndex(file: string): number {
+  return Number(file.match(/preview-page-(\d+)\.png/)?.[1] ?? 0);
 }
 
 async function persistPreviewArtifact(artifactName: string, pdf: Buffer) {

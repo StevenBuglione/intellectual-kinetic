@@ -1,4 +1,7 @@
 import type { CanonicalBlock, CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
+import { pageLayoutContract } from "@/lib/layout/page-layout-contract";
+
+const { page, typography, table, figure } = pageLayoutContract;
 
 export type LatexDiagnostic = {
   severity: "warning" | "error";
@@ -25,19 +28,19 @@ export function serializeCanonicalDocumentToLatex(
     `% Generated deterministically from canonical AST ${document.id}`,
     `\\documentclass{${document.settings.documentClass}}`,
     ...document.settings.modules.map((moduleName) => `\\usepackage{${moduleName}}`),
-    "\\usepackage[margin=1in]{geometry}",
+    `\\usepackage[margin=${page.marginIn}in]{geometry}`,
     "\\usepackage[scaled]{helvet}",
     "\\usepackage{xcolor}",
     "\\usepackage{array}",
     "\\renewcommand{\\familydefault}{\\sfdefault}",
     "\\setlength{\\parindent}{0pt}",
     "\\setlength{\\parskip}{0.75em}",
-    "\\newcommand{\\IkHeadingOne}[1]{{\\fontsize{21pt}{26pt}\\selectfont\\bfseries #1}\\par\\vspace{0.35em}}",
-    "\\newcommand{\\IkHeadingTwo}[1]{{\\fontsize{17pt}{22pt}\\selectfont\\bfseries #1}\\par\\vspace{0.3em}}",
-    "\\newcommand{\\IkHeadingThree}[1]{{\\fontsize{14pt}{18pt}\\selectfont\\bfseries #1}\\par\\vspace{0.25em}}",
+    `\\newcommand{\\IkHeadingOne}[1]{{\\fontsize{${typography.headingOneFontSizePt}pt}{${typography.headingOneLineHeightPt}pt}\\selectfont\\bfseries #1}\\par\\vspace{0.35em}}`,
+    `\\newcommand{\\IkHeadingTwo}[1]{{\\fontsize{${typography.headingTwoFontSizePt}pt}{${typography.headingTwoLineHeightPt}pt}\\selectfont\\bfseries #1}\\par\\vspace{0.3em}}`,
+    `\\newcommand{\\IkHeadingThree}[1]{{\\fontsize{${typography.headingThreeFontSizePt}pt}{${typography.headingThreeLineHeightPt}pt}\\selectfont\\bfseries #1}\\par\\vspace{0.25em}}`,
     "\\newcommand{\\IkTheoremBlock}[1]{\\par\\vspace{0.6em}\\noindent\\hspace{0.25in}\\begin{minipage}{0.86\\linewidth}#1\\end{minipage}\\par\\vspace{0.6em}}",
-    "\\newcommand{\\IkTableCell}[2]{\\fbox{\\begin{minipage}[t][0.34in][c]{#1}\\raggedright #2\\end{minipage}}}",
-    "\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][1.0in][c]{0.68\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}",
+    `\\newcommand{\\IkTableCell}[2]{\\fbox{\\begin{minipage}[t][${table.cellHeightIn}in][c]{#1}\\raggedright #2\\end{minipage}}}`,
+    `\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][${figure.placeholderHeightIn}in][c]{${figure.placeholderWidthRatio}\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}`,
     "\\makeatletter\\let\\ps@plain\\ps@empty\\makeatother",
     "\\pagestyle{empty}",
     "\\begin{document}",
@@ -100,7 +103,7 @@ function serializeBlock(
     const caption = block.caption ? serializeInline(block.caption, block, labels, diagnostics) : "";
     const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
     const columnCount = Math.max(1, ...block.rows.map((row) => row.cells.length));
-    const cellWidth = `${(6 / columnCount).toFixed(2)}in`;
+    const cellWidth = `${(table.contentWidthIn / columnCount).toFixed(2)}in`;
     const rows = block.rows.map((row, index) => {
       const rowBreak = index === block.rows.length - 1 ? "" : "\\\\[-\\fboxrule]";
       return `\\noindent${row.cells.map((cell) => {

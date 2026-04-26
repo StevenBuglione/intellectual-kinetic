@@ -3,22 +3,37 @@ import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import { getVisualParityRatchet } from "@/fixtures/parity/visual-ratchets";
 import type { CanonicalDocument } from "@/lib/editor-core/types";
 import { compileCanonicalDocumentToPdf } from "@/lib/latex/compiler";
-import { renderCanonicalDocumentToEditorHtml } from "./editor-html-renderer";
+import { pageLayoutContract, pagePixelCount } from "@/lib/layout/page-layout-contract";
+import { renderCanonicalDocumentPagesToEditorHtml } from "./editor-html-renderer";
 
 const execFileAsync = promisify(execFile);
-const PAGE_WIDTH = 816;
-const PAGE_HEIGHT = 1056;
+const { page } = pageLayoutContract;
 const DEFAULT_MAX_DIFFERENT_PIXELS = Number(process.env.IK_VISUAL_MAX_DIFFERENT_PIXELS ?? 108_500);
 const DEFAULT_MAX_NORMALIZED_DIFFERENCE = Number(process.env.IK_VISUAL_MAX_NORMALIZED_DIFFERENCE ?? 0.126);
 
 export type VisualParityThresholds = {
   maxDifferentPixels: number;
   maxNormalizedDifference: number;
+  targetDifferentPixels: number;
 };
 
 export type VisualParityMetrics = {
+  differentPixels: number;
+  normalizedDifference: number;
+  pixelPerfect: boolean;
+  editorWidth: number;
+  editorHeight: number;
+  pdfWidth: number;
+  pdfHeight: number;
+  pageCount: number;
+  pages: VisualParityPageMetrics[];
+};
+
+export type VisualParityPageMetrics = {
+  pageNumber: number;
   differentPixels: number;
   normalizedDifference: number;
   pixelPerfect: boolean;
@@ -48,15 +63,12 @@ export type VisualParityVerificationReport = {
 
 export async function runVisualParityVerification(
   documents: CanonicalDocument[],
-  thresholds: VisualParityThresholds = {
-    maxDifferentPixels: DEFAULT_MAX_DIFFERENT_PIXELS,
-    maxNormalizedDifference: DEFAULT_MAX_NORMALIZED_DIFFERENCE,
-  },
+  thresholdOverrides?: Partial<VisualParityThresholds>,
 ): Promise<VisualParityVerificationReport> {
   const fixtures: VisualParityFixtureReport[] = [];
 
   for (const document of documents) {
-    fixtures.push(await runVisualParityFixture(document, thresholds));
+    fixtures.push(await runVisualParityFixture(document, resolveVisualParityThresholds(document.id, thresholdOverrides)));
   }
 
   return {
@@ -67,59 +79,82 @@ export async function runVisualParityVerification(
 
 export async function runVisualParityFixture(
   document: CanonicalDocument,
-  thresholds: VisualParityThresholds = {
-    maxDifferentPixels: DEFAULT_MAX_DIFFERENT_PIXELS,
-    maxNormalizedDifference: DEFAULT_MAX_NORMALIZED_DIFFERENCE,
-  },
+  thresholds: VisualParityThresholds = resolveVisualParityThresholds(document.id),
 ): Promise<VisualParityFixtureReport> {
   const workingDirectory = await mkdtemp(path.join(tmpdir(), "ik-visual-parity-"));
   const checks: string[] = [];
   const errors: string[] = [];
   const artifacts: NonNullable<VisualParityFixtureReport["artifacts"]> = {};
-  const htmlPath = path.join(workingDirectory, "editor.html");
-  const editorImagePath = path.join(workingDirectory, "editor.png");
-  const pdfImagePath = path.join(workingDirectory, "pdf.png");
-  const diffImagePath = path.join(workingDirectory, "diff.png");
 
   try {
-    await writeFile(htmlPath, renderCanonicalDocumentToEditorHtml(document), "utf8");
-    await renderEditorScreenshot(htmlPath, editorImagePath);
+    const editorPageHtml = renderCanonicalDocumentPagesToEditorHtml(document);
+    const editorImagePaths = await renderEditorPageScreenshots(workingDirectory, editorPageHtml);
     checks.push("editor-browser-render");
 
     const pdf = await compileCanonicalDocumentToPdf(document);
-    if (pdf.status !== "compiled" || !pdf.previewImageBase64) {
+    const pdfPageImages = pdf.previewPageImageBase64 ?? (pdf.previewImageBase64 ? [pdf.previewImageBase64] : []);
+    if (pdf.status !== "compiled" || pdfPageImages.length === 0) {
       errors.push("PDF compilation did not produce a preview image.");
       return emptyReport(document.id, checks, errors, thresholds, artifacts);
     }
 
-    await writeFile(pdfImagePath, Buffer.from(pdf.previewImageBase64, "base64"));
+    const pdfImagePaths = await writePdfPageImages(workingDirectory, pdfPageImages);
     checks.push("pdf-page-render");
 
-    const [editorSize, pdfSize] = await Promise.all([
-      identifyImage(editorImagePath),
-      identifyImage(pdfImagePath),
-    ]);
-
-    if (editorSize.width !== PAGE_WIDTH || editorSize.height !== PAGE_HEIGHT) {
-      errors.push(`Editor render size drifted to ${editorSize.width}x${editorSize.height}.`);
+    if (editorImagePaths.length !== pdfImagePaths.length) {
+      errors.push(
+        `Editor/PDF page count mismatch: ${editorImagePaths.length} editor pages vs ${pdfImagePaths.length} PDF pages.`,
+      );
     }
 
-    if (pdfSize.width !== PAGE_WIDTH || pdfSize.height !== PAGE_HEIGHT) {
-      errors.push(`PDF render size drifted to ${pdfSize.width}x${pdfSize.height}.`);
+    const pageCount = Math.min(editorImagePaths.length, pdfImagePaths.length);
+    const pageMetrics: VisualParityPageMetrics[] = [];
+
+    for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
+      const editorImagePath = editorImagePaths[pageIndex];
+      const pdfImagePath = pdfImagePaths[pageIndex];
+      const diffImagePath = path.join(workingDirectory, `diff-page-${pageIndex + 1}.png`);
+      const [editorSize, pdfSize] = await Promise.all([
+        identifyImage(editorImagePath),
+        identifyImage(pdfImagePath),
+      ]);
+
+      if (editorSize.width !== page.widthPx || editorSize.height !== page.heightPx) {
+        errors.push(`Editor page ${pageIndex + 1} render size drifted to ${editorSize.width}x${editorSize.height}.`);
+      }
+
+      if (pdfSize.width !== page.widthPx || pdfSize.height !== page.heightPx) {
+        errors.push(`PDF page ${pageIndex + 1} render size drifted to ${pdfSize.width}x${pdfSize.height}.`);
+      }
+
+      const pageDifferentPixels = await compareImages(editorImagePath, pdfImagePath, diffImagePath);
+      pageMetrics.push({
+        pageNumber: pageIndex + 1,
+        differentPixels: pageDifferentPixels,
+        normalizedDifference: pageDifferentPixels / pagePixelCount,
+        pixelPerfect: pageDifferentPixels === thresholds.targetDifferentPixels,
+        editorWidth: editorSize.width,
+        editorHeight: editorSize.height,
+        pdfWidth: pdfSize.width,
+        pdfHeight: pdfSize.height,
+      });
     }
 
-    const differentPixels = await compareImages(editorImagePath, pdfImagePath, diffImagePath);
-    const normalizedDifference = differentPixels / (PAGE_WIDTH * PAGE_HEIGHT);
+    const differentPixels = pageMetrics.reduce((sum, pageMetric) => sum + pageMetric.differentPixels, 0);
+    const normalizedDifference = differentPixels / Math.max(1, pageMetrics.length * pagePixelCount);
     const metrics = {
       differentPixels,
       normalizedDifference,
-      pixelPerfect: differentPixels === 0,
-      editorWidth: editorSize.width,
-      editorHeight: editorSize.height,
-      pdfWidth: pdfSize.width,
-      pdfHeight: pdfSize.height,
+      pixelPerfect: differentPixels === thresholds.targetDifferentPixels,
+      editorWidth: pageMetrics[0]?.editorWidth ?? 0,
+      editorHeight: pageMetrics[0]?.editorHeight ?? 0,
+      pdfWidth: pageMetrics[0]?.pdfWidth ?? 0,
+      pdfHeight: pageMetrics[0]?.pdfHeight ?? 0,
+      pageCount: pageMetrics.length,
+      pages: pageMetrics,
     };
     checks.push("editor-pdf-visual-diff");
+    checks.push("editor-pdf-page-sequence");
 
     if (differentPixels > thresholds.maxDifferentPixels) {
       errors.push(
@@ -134,9 +169,9 @@ export async function runVisualParityFixture(
     }
 
     Object.assign(artifacts, await persistVisualArtifacts(document.id, {
-      editorImagePath,
-      pdfImagePath,
-      diffImagePath,
+      editorImagePath: editorImagePaths[0],
+      pdfImagePath: pdfImagePaths[0],
+      diffImagePath: path.join(workingDirectory, "diff-page-1.png"),
     }));
 
     return {
@@ -165,7 +200,7 @@ async function renderEditorScreenshot(htmlPath: string, outputPath: string) {
       "--disable-gpu",
       "--hide-scrollbars",
       "--force-device-scale-factor=1",
-      `--window-size=${PAGE_WIDTH},${PAGE_HEIGHT}`,
+      `--window-size=${page.widthPx},${page.heightPx}`,
       `--screenshot=${outputPath}`,
       `file://${htmlPath}`,
     ],
@@ -174,6 +209,32 @@ async function renderEditorScreenshot(htmlPath: string, outputPath: string) {
       maxBuffer: 1024 * 1024 * 4,
     },
   );
+}
+
+async function renderEditorPageScreenshots(workingDirectory: string, editorPageHtml: string[]): Promise<string[]> {
+  const outputPaths: string[] = [];
+
+  for (const [index, html] of editorPageHtml.entries()) {
+    const htmlPath = path.join(workingDirectory, `editor-page-${index + 1}.html`);
+    const outputPath = path.join(workingDirectory, `editor-page-${index + 1}.png`);
+    await writeFile(htmlPath, html, "utf8");
+    await renderEditorScreenshot(htmlPath, outputPath);
+    outputPaths.push(outputPath);
+  }
+
+  return outputPaths;
+}
+
+async function writePdfPageImages(workingDirectory: string, pdfPageImages: string[]): Promise<string[]> {
+  const outputPaths: string[] = [];
+
+  for (const [index, image] of pdfPageImages.entries()) {
+    const outputPath = path.join(workingDirectory, `pdf-page-${index + 1}.png`);
+    await writeFile(outputPath, Buffer.from(image, "base64"));
+    outputPaths.push(outputPath);
+  }
+
+  return outputPaths;
 }
 
 async function identifyImage(imagePath: string): Promise<{ width: number; height: number }> {
@@ -262,9 +323,23 @@ function emptyReport(
       editorHeight: 0,
       pdfWidth: 0,
       pdfHeight: 0,
+      pageCount: 0,
+      pages: [],
     },
     thresholds,
     artifacts: Object.keys(artifacts).length > 0 ? artifacts : undefined,
+  };
+}
+
+function resolveVisualParityThresholds(
+  fixtureId: string,
+  overrides?: Partial<VisualParityThresholds>,
+): VisualParityThresholds {
+  const ratchet = getVisualParityRatchet(fixtureId);
+  return {
+    maxDifferentPixels: overrides?.maxDifferentPixels ?? ratchet?.maxDifferentPixels ?? DEFAULT_MAX_DIFFERENT_PIXELS,
+    maxNormalizedDifference: overrides?.maxNormalizedDifference ?? ratchet?.maxNormalizedDifference ?? DEFAULT_MAX_NORMALIZED_DIFFERENCE,
+    targetDifferentPixels: overrides?.targetDifferentPixels ?? ratchet?.targetDifferentPixels ?? pageLayoutContract.targets.pixelPerfectDifferentPixels,
   };
 }
 

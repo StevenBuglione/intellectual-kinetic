@@ -38,7 +38,7 @@ Compose starts:
 - `npm run typecheck` - run TypeScript verification
 - `npm run test` - run Vitest regression tests
 - `npm run verify:fixtures` - run the initial fixture-driven parity check
-- `npm run verify:visual` - render TextView fixtures in headless Chrome, render compiled PDFs to PNG, and fail on editor/PDF visual drift
+- `npm run verify:visual` - render TextView fixture pages in headless Chrome, render every compiled PDF page to PNG, and fail on editor/PDF visual drift above the ratcheted budget
 - `npm run verify:gates` - run semantic fixture gates and visual parity gates together
 
-`verify:visual` requires `pdflatex`, `pdftoppm`, ImageMagick `compare`/`identify`, and a Chrome-compatible browser. Set `IK_ARTIFACT_ROOT=.artifacts` to keep `editor.png`, `pdf.png`, and `diff.png` outputs for inspection.
+`verify:visual` requires `pdflatex`, `pdftoppm`, ImageMagick `compare`/`identify`, and a Chrome-compatible browser. Set `IK_ARTIFACT_ROOT=.artifacts` to keep `editor.png`, `pdf.png`, and `diff.png` outputs for inspection. Fixture budgets live in code with a zero-difference target so parity improvements can ratchet the allowed drift downward.
