@@ -12,9 +12,11 @@ import StarterKit from "@tiptap/starter-kit";
 import Link from "next/link";
 import {
   AlignLeft,
+  BarChart3,
   Bold,
   Braces,
   CheckCircle2,
+  ClipboardPaste,
   Code2,
   Columns3,
   FileCode2,
@@ -31,6 +33,7 @@ import {
   Paintbrush,
   Printer,
   Redo2,
+  Replace,
   Save,
   Search,
   SpellCheck,
@@ -40,6 +43,12 @@ import {
   Video,
 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  calculateDocumentStatistics,
+  pasteSpecialToCanonicalBlocks,
+  replaceAllInCanonicalDocument,
+  type PasteSpecialFormat,
+} from "@/lib/editor-core/document-workflows";
 import { canonicalBlockListsEqual, mergeCanonicalPatchBlocks } from "@/lib/editor-core/patch-merge";
 import { compareCanonicalDocumentToPdfText } from "@/lib/editor-core/plaintext";
 import type { CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
@@ -63,6 +72,12 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [workflowPanel, setWorkflowPanel] = useState<"find" | "statistics" | "paste" | null>(null);
+  const [findText, setFindText] = useState("");
+  const [replaceText, setReplaceText] = useState("");
+  const [replacementCount, setReplacementCount] = useState<number | null>(null);
+  const [pasteFormat, setPasteFormat] = useState<PasteSpecialFormat>("latex");
+  const [pasteSource, setPasteSource] = useState("");
   const [editorMountKey, setEditorMountKey] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [compileState, setCompileState] = useState<"idle" | "compiling" | "compiled" | "failed">("idle");
@@ -77,6 +92,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   }, [compiledPreview, editorParitySurface]);
   const usingTexDerivedEditorSurface = texEditorPageBoxes.length > 0;
   const latex = useMemo(() => serializeCanonicalDocumentToLatex(document), [document]);
+  const documentStatistics = useMemo(() => calculateDocumentStatistics(document), [document]);
   const pdfTextVerification = useMemo(
     () => compareCanonicalDocumentToPdfText(document, compiledPreview?.extractedText),
     [compiledPreview?.extractedText, document],
@@ -158,6 +174,54 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     } else {
       setSaveState("idle");
     }
+  }
+
+  const applyDocumentUpdate = useCallback((nextDocument: CanonicalDocument) => {
+    documentRef.current = nextDocument;
+    setDocument(nextDocument);
+    setCompiledPreview(null);
+    setCompileState("idle");
+    setEditorMountKey((key) => key + 1);
+  }, []);
+
+  function replaceAllMatches() {
+    const result = replaceAllInCanonicalDocument(documentRef.current, {
+      find: findText,
+      replaceWith: replaceText,
+      matchCase: false,
+    });
+
+    setReplacementCount(result.replacementCount);
+    if (result.replacementCount > 0) {
+      applyDocumentUpdate(result.document);
+    }
+  }
+
+  function insertPasteSpecial() {
+    const pastedBlocks = pasteSpecialToCanonicalBlocks({
+      format: pasteFormat,
+      source: pasteSource,
+    });
+
+    if (pastedBlocks.length === 0) {
+      return;
+    }
+
+    const pasteSessionId = Date.now().toString(36);
+    const nextDocument = {
+      ...documentRef.current,
+      blocks: [
+        ...documentRef.current.blocks,
+        ...pastedBlocks.map((block, index) => ({
+          ...block,
+          id: `${block.id}-${pasteSessionId}-${index + 1}`,
+        })),
+      ],
+      updatedAt: new Date().toISOString(),
+    };
+
+    setPasteSource("");
+    applyDocumentUpdate(nextDocument);
   }
 
   const compilePdfPreview = useCallback(async () => {
@@ -274,6 +338,15 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             />
             <span id="ik-doc-menu-search-results" role="listbox" hidden />
           </label>
+          <button
+            type="button"
+            className="ik-doc-icon"
+            aria-label="Find and replace"
+            aria-pressed={workflowPanel === "find"}
+            onClick={() => setWorkflowPanel((panel) => panel === "find" ? null : "find")}
+          >
+            <Replace size={16} />
+          </button>
           <button type="button" className="ik-doc-icon" aria-label="Undo" onClick={() => editor?.chain().focus().undo().run()}>
             <Undo2 size={16} />
           </button>
@@ -285,6 +358,15 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
           </button>
           <button type="button" className="ik-doc-icon" aria-label="Spelling and grammar check">
             <SpellCheck size={16} />
+          </button>
+          <button
+            type="button"
+            className="ik-doc-icon"
+            aria-label="Document statistics"
+            aria-pressed={workflowPanel === "statistics"}
+            onClick={() => setWorkflowPanel((panel) => panel === "statistics" ? null : "statistics")}
+          >
+            <BarChart3 size={16} />
           </button>
           <button type="button" className="ik-doc-icon" aria-label="Paint format">
             <Paintbrush size={16} />
@@ -326,6 +408,15 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
           </button>
           <button type="button" className="ik-doc-icon" aria-label="Insert image">
             <ImageIcon size={16} />
+          </button>
+          <button
+            type="button"
+            className="ik-doc-icon"
+            aria-label="Paste special"
+            aria-pressed={workflowPanel === "paste"}
+            onClick={() => setWorkflowPanel((panel) => panel === "paste" ? null : "paste")}
+          >
+            <ClipboardPaste size={16} />
           </button>
           <span className="ik-doc-divider" />
           <button type="button" className="ik-doc-icon" onClick={() => editor?.chain().focus().toggleBulletList().run()} aria-label="Bulleted list">
@@ -395,6 +486,90 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
                   <strong>{Math.round((block.provenance?.confidence ?? 0.75) * 100)}%</strong>
                 </button>
               ))}
+            </aside>
+          ) : null}
+          {workflowPanel === "find" ? (
+            <aside className="ik-doc-side-panel ik-workflow-panel" aria-label="Find and replace">
+              <div className="ik-panel-title">
+                <Replace size={18} />
+                Find and replace
+              </div>
+              <label>
+                <span>Find</span>
+                <input
+                  type="search"
+                  aria-label="Find text"
+                  value={findText}
+                  onChange={(event) => {
+                    setFindText(event.target.value);
+                    setReplacementCount(null);
+                  }}
+                />
+              </label>
+              <label>
+                <span>Replace</span>
+                <input
+                  type="text"
+                  aria-label="Replace with"
+                  value={replaceText}
+                  onChange={(event) => setReplaceText(event.target.value)}
+                />
+              </label>
+              <button className="ik-doc-action-button" type="button" onClick={replaceAllMatches}>
+                Replace all
+              </button>
+              {replacementCount !== null ? (
+                <p className="ik-workflow-status" aria-live="polite">
+                  {replacementCount} replacements
+                </p>
+              ) : null}
+            </aside>
+          ) : null}
+          {workflowPanel === "statistics" ? (
+            <aside className="ik-doc-side-panel ik-workflow-panel" aria-label="Document statistics">
+              <div className="ik-panel-title">
+                <BarChart3 size={18} />
+                Document statistics
+              </div>
+              <dl className="ik-stat-grid">
+                <div><dt>Words</dt><dd>{documentStatistics.words} words</dd></div>
+                <div><dt>Characters</dt><dd>{documentStatistics.characters} characters</dd></div>
+                <div><dt>No spaces</dt><dd>{documentStatistics.charactersNoSpaces} characters</dd></div>
+                <div><dt>Blocks</dt><dd>{documentStatistics.totalBlocks} blocks</dd></div>
+                <div><dt>Headings</dt><dd>{documentStatistics.headings} headings</dd></div>
+                <div><dt>Math</dt><dd>{documentStatistics.mathBlocks} math blocks</dd></div>
+              </dl>
+            </aside>
+          ) : null}
+          {workflowPanel === "paste" ? (
+            <aside className="ik-doc-side-panel ik-workflow-panel" aria-label="Paste special">
+              <div className="ik-panel-title">
+                <ClipboardPaste size={18} />
+                Paste special
+              </div>
+              <label>
+                <span>Format</span>
+                <select
+                  aria-label="Paste format"
+                  value={pasteFormat}
+                  onChange={(event) => setPasteFormat(event.target.value as PasteSpecialFormat)}
+                >
+                  <option value="latex">LaTeX</option>
+                  <option value="html">HTML</option>
+                  <option value="plain-text">Plain text</option>
+                </select>
+              </label>
+              <label>
+                <span>Source</span>
+                <textarea
+                  aria-label="Paste source"
+                  value={pasteSource}
+                  onChange={(event) => setPasteSource(event.target.value)}
+                />
+              </label>
+              <button className="ik-doc-action-button" type="button" onClick={insertPasteSpecial}>
+                Insert paste
+              </button>
             </aside>
           ) : null}
         </div>

@@ -346,6 +346,11 @@ button {
   background: #d3e3fd;
 }
 
+.ik-doc-icon[aria-pressed="true"] {
+  color: #0b57d0;
+  background: #d3e3fd;
+}
+
 .ik-doc-divider {
   width: 1px;
   height: 26px;
@@ -596,6 +601,74 @@ button {
   border-radius: 12px;
   background: #ffffff;
   color: #202124;
+}
+
+.ik-workflow-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.ik-workflow-panel label {
+  display: grid;
+  gap: 5px;
+  color: #3c4043;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ik-workflow-panel input,
+.ik-workflow-panel select,
+.ik-workflow-panel textarea {
+  width: 100%;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #202124;
+  background: #ffffff;
+  font: inherit;
+  font-size: 13px;
+}
+
+.ik-workflow-panel textarea {
+  min-height: 132px;
+  resize: vertical;
+  font-family: "Nimbus Mono PS", "Courier New", monospace;
+}
+
+.ik-workflow-status {
+  margin: 0;
+  color: #0b57d0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ik-stat-grid {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.ik-stat-grid div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.ik-stat-grid dt {
+  color: #5f6368;
+  font-size: 12px;
+}
+
+.ik-stat-grid dd {
+  margin: 0;
+  color: #202124;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
 }
 
 .ik-doc-tabs-rail {

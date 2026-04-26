@@ -104,4 +104,34 @@ describe("EditorWorkspace", () => {
     expect(screen.getByLabelText("Google Docs-style document page")).not.toHaveAttribute("aria-hidden");
     expect(within(texSurface).getByLabelText("Google Docs-style document page")).toBeInTheDocument();
   });
+
+  it("runs find and replace through canonical AST and updates the editing surface", async () => {
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Find and replace" }));
+    await userEvent.type(screen.getByRole("searchbox", { name: "Find text" }), "motion");
+    await userEvent.type(screen.getByRole("textbox", { name: "Replace with" }), "movement");
+    await userEvent.click(screen.getByRole("button", { name: "Replace all" }));
+
+    expect(await screen.findByText("2 replacements")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "A Treatise on movement" })).toBeInTheDocument();
+    expect(screen.getByText("Uniform movement preserves proportional distance.")).toBeInTheDocument();
+  });
+
+  it("shows document statistics and imports paste-special content into the canonical editor", async () => {
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Document statistics" }));
+    expect(screen.getByRole("complementary", { name: "Document statistics" })).toHaveTextContent("18 words");
+    expect(screen.getByRole("complementary", { name: "Document statistics" })).toHaveTextContent("4 blocks");
+
+    await userEvent.click(screen.getByRole("button", { name: "Paste special" }));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Paste format" }), "latex");
+    await userEvent.click(screen.getByRole("textbox", { name: "Paste source" }));
+    await userEvent.paste("\\section{Imported Section}\nImported body.");
+    await userEvent.click(screen.getByRole("button", { name: "Insert paste" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Imported Section" })).toBeInTheDocument();
+    expect(screen.getByText("Imported body.")).toBeInTheDocument();
+  });
 });
