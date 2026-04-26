@@ -132,7 +132,24 @@ describe("EditorWorkspace", () => {
 
     expect(await within(findDialog).findByText("1 of 2")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "A Treatise on Motion" })).toBeInTheDocument();
-    expect(screen.getByText("Uniform motion preserves proportional distance.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Google Docs-style document page")).toHaveTextContent(
+      "Uniform motion preserves proportional distance.",
+    );
+  });
+
+  it("highlights all visible find matches and marks the current match", async () => {
+    const { container } = render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Find and replace" }));
+    const findDialog = screen.getByRole("dialog", { name: "Find and replace" });
+    await userEvent.type(within(findDialog).getByRole("searchbox", { name: "Find text" }), "motion");
+
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Find next" }));
+
+    expect(await within(findDialog).findByText("1 of 2")).toBeInTheDocument();
+    expect(container.querySelectorAll(".ik-find-highlight")).toHaveLength(2);
+    expect(container.querySelectorAll(".ik-find-highlight-current")).toHaveLength(1);
+    expect(container.querySelector(".ik-find-highlight-current")).toHaveTextContent("Motion");
   });
 
   it("applies match-case and whole-word options to the visible find count", async () => {

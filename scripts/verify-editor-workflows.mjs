@@ -148,6 +148,15 @@ async function main() {
     if (selectedMatch.toLocaleLowerCase() !== "motion") {
       throw new Error(`Find next did not select matching editor text; selected ${JSON.stringify(selectedMatch)}.`);
     }
+    const initialHighlights = await page.locator(".ik-find-highlight").evaluateAll((nodes) => (
+      nodes.map((node) => ({
+        text: node.textContent,
+        current: node.classList.contains("ik-find-highlight-current"),
+      }))
+    ));
+    if (initialHighlights.length !== 2 || initialHighlights.filter((highlight) => highlight.current).length !== 1) {
+      throw new Error(`Find highlights did not mark all/current matches: ${JSON.stringify(initialHighlights)}.`);
+    }
 
     await findDialog.getByRole("checkbox", { name: "Match case" }).click();
     await findDialog.getByRole("button", { name: "Find next" }).click();
@@ -155,6 +164,10 @@ async function main() {
     const selectedCaseSensitiveMatch = await page.evaluate(() => window.getSelection()?.toString() ?? "");
     if (selectedCaseSensitiveMatch !== "motion") {
       throw new Error(`Match case did not select the lowercase visible match; selected ${JSON.stringify(selectedCaseSensitiveMatch)}.`);
+    }
+    const caseSensitiveHighlights = await page.locator(".ik-find-highlight").count();
+    if (caseSensitiveHighlights !== 1) {
+      throw new Error(`Match case should leave one visible highlight, found ${caseSensitiveHighlights}.`);
     }
 
     await searchBox.fill("Motion");

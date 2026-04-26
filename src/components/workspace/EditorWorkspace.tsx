@@ -7,9 +7,10 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
-import type { Editor } from "@tiptap/core";
+import { Extension, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { TextSelection } from "@tiptap/pm/state";
+import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "next/link";
@@ -68,6 +69,51 @@ import {
 type EditorWorkspaceProps = {
   initialDocument: CanonicalDocument;
 };
+
+type FindHighlightState = {
+  decorations: DecorationSet;
+};
+
+const findHighlightPluginKey = new PluginKey<FindHighlightState>("ikFindHighlights");
+
+const FindHighlightExtension = Extension.create({
+  name: "findHighlightDecorations",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin<FindHighlightState>({
+        key: findHighlightPluginKey,
+        state: {
+          init: () => ({ decorations: DecorationSet.empty }),
+          apply(transaction, previous) {
+            const ranges = transaction.getMeta(findHighlightPluginKey) as FindHighlightRange[] | undefined;
+            if (ranges) {
+              return {
+                decorations: DecorationSet.create(
+                  transaction.doc,
+                  ranges.map((range) => Decoration.inline(range.from, range.to, {
+                    class: range.current ? "ik-find-highlight ik-find-highlight-current" : "ik-find-highlight",
+                    "data-find-highlight": range.current ? "current" : "match",
+                  })),
+                ),
+              };
+            }
+
+            if (transaction.docChanged) {
+              return { decorations: previous.decorations.map(transaction.mapping, transaction.doc) };
+            }
+
+            return previous;
+          },
+        },
+        props: {
+          decorations(state) {
+            return findHighlightPluginKey.getState(state)?.decorations ?? DecorationSet.empty;
+          },
+        },
+      }),
+    ];
+  },
+});
 
 export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [document, setDocument] = useState(initialDocument);
@@ -143,6 +189,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       CanonicalDocumentAttributes,
       StarterKit,
       MathInline,
+      FindHighlightExtension,
       Highlight,
       Placeholder.configure({
         placeholder: "Restore the document structure...",
@@ -215,6 +262,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     documentRef.current = nextDocument;
     setDocument(nextDocument);
     editor?.commands.setContent(canonicalToTiptapDocument(nextDocument), { emitUpdate: false });
+    updateFindHighlights(editor, [], -1);
     setCompiledPreview(null);
     setCompileState("idle");
     setFindCursor(-1);
@@ -223,6 +271,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
 
   function selectFindMatch(direction: "next" | "previous" = "next") {
     if (!editor || findText.length === 0) {
+      updateFindHighlights(editor, [], -1);
       setFindCursor(-1);
       setFindStatus({ activeIndex: 0, total: 0 });
       return;
@@ -230,6 +279,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
 
     const matches = findEditorTextMatches(editor, findText, { matchCase, wholeWord });
     if (matches.length === 0) {
+      updateFindHighlights(editor, [], -1);
       setFindCursor(-1);
       setFindStatus({ activeIndex: 0, total: 0 });
       return;
@@ -241,6 +291,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       : (findCursor + step + matches.length) % matches.length;
     const match = matches[nextIndex];
 
+    updateFindHighlights(editor, matches, nextIndex);
     editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, match.from, match.to)));
     editor.view.focus();
     setFindCursor(nextIndex);
@@ -250,6 +301,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
 
   function replaceAllMatches() {
     if (!editor || findText.length === 0) {
+      updateFindHighlights(editor, [], -1);
       setReplacementCount(0);
       setFindStatus({ activeIndex: 0, total: 0 });
       return;
@@ -260,6 +312,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     if (matches.length > 0) {
       replaceEditorTextRanges(editor, matches, replaceText);
       syncDocumentFromEditor(editor);
+      updateFindHighlights(editor, [], -1);
       setFindCursor(-1);
       setFindStatus(null);
     }
@@ -267,6 +320,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
 
   function replaceCurrentMatch() {
     if (!editor || findText.length === 0) {
+      updateFindHighlights(editor, [], -1);
       setReplacementCount(0);
       setFindStatus({ activeIndex: 0, total: 0 });
       return;
@@ -274,6 +328,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
 
     const matches = findEditorTextMatches(editor, findText, { matchCase, wholeWord });
     if (matches.length === 0) {
+      updateFindHighlights(editor, [], -1);
       setReplacementCount(0);
       setFindCursor(-1);
       setFindStatus({ activeIndex: 0, total: 0 });
@@ -283,6 +338,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     const selectedMatch = currentSelectedFindMatch(editor, matches) ?? matches[findCursor] ?? matches[0];
     replaceEditorTextRanges(editor, [selectedMatch], replaceText);
     syncDocumentFromEditor(editor);
+    updateFindHighlights(editor, [], -1);
     setReplacementCount(1);
     setFindCursor(-1);
     setFindStatus(null);
@@ -646,6 +702,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
                   setReplacementCount(null);
                   setFindCursor(-1);
                   setFindStatus(null);
+                  updateFindHighlights(editor, [], -1);
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -679,6 +736,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
                     setFindCursor(-1);
                     setFindStatus(null);
                     setReplacementCount(null);
+                    updateFindHighlights(editor, [], -1);
                   }}
                 />
                 <span>Match case</span>
@@ -692,6 +750,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
                     setFindCursor(-1);
                     setFindStatus(null);
                     setReplacementCount(null);
+                    updateFindHighlights(editor, [], -1);
                   }}
                 />
                 <span>Whole word</span>
@@ -840,6 +899,10 @@ type EditorTextMatch = {
   to: number;
 };
 
+type FindHighlightRange = EditorTextMatch & {
+  current: boolean;
+};
+
 type SearchCharacter = {
   value: string;
   from: number;
@@ -906,6 +969,19 @@ function currentSelectedFindMatch(editor: Editor, matches: EditorTextMatch[]): E
   const { from, to } = editor.state.selection;
 
   return matches.find((match) => match.from === from && match.to === to);
+}
+
+function updateFindHighlights(editor: Editor | null, matches: EditorTextMatch[], currentIndex: number) {
+  if (!editor) {
+    return;
+  }
+
+  const ranges = matches.map((match, index) => ({
+    ...match,
+    current: index === currentIndex,
+  }));
+
+  editor.view.dispatch(editor.state.tr.setMeta(findHighlightPluginKey, ranges));
 }
 
 function replaceEditorTextRanges(editor: Editor, matches: EditorTextMatch[], replaceWith: string) {
