@@ -344,6 +344,14 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     setFindStatus(null);
   }
 
+  function closeFindDialog() {
+    updateFindHighlights(editor, [], -1);
+    setFindCursor(-1);
+    setFindStatus(null);
+    setReplacementCount(null);
+    setWorkflowPanel(null);
+  }
+
   function insertPasteSpecial() {
     const pastedBlocks = pasteSpecialToCanonicalBlocks({
       format: pasteFormat,
@@ -490,7 +498,13 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             className="ik-doc-icon"
             aria-label="Find and replace"
             aria-pressed={workflowPanel === "find"}
-            onClick={() => setWorkflowPanel((panel) => panel === "find" ? null : "find")}
+            onClick={() => {
+              if (workflowPanel === "find") {
+                closeFindDialog();
+              } else {
+                setWorkflowPanel("find");
+              }
+            }}
           >
             <Replace size={16} />
           </button>
@@ -766,7 +780,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
               />
             </label>
             <div className="ik-find-dialog-actions">
-              <button className="ik-doc-panel-button" type="button" onClick={() => setWorkflowPanel(null)}>
+              <button className="ik-doc-panel-button" type="button" onClick={closeFindDialog}>
                 Close
               </button>
               <button className="ik-doc-panel-button" type="button" onClick={replaceCurrentMatch}>

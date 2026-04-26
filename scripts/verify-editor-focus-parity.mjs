@@ -12,7 +12,7 @@ const execFileAsync = promisify(execFile);
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(scriptDir, "..");
 const port = Number(process.env.IK_VERIFY_PORT ?? 3100);
-const appUrl = `http://127.0.0.1:${port}`;
+let appUrl = `http://127.0.0.1:${port}`;
 
 function npmCommand() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
@@ -72,6 +72,32 @@ async function waitForApp(server, logs) {
   throw new Error(`Timed out waiting for ${appUrl}.\n${logs.join("")}`);
 }
 
+async function detectExistingAppUrl() {
+  const candidates = [
+    process.env.IK_VERIFY_APP_URL,
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(`${candidate}/api/documents/default`, { cache: "no-store" });
+      if (!response.ok) {
+        continue;
+      }
+
+      const payload = await response.json();
+      if (payload?.document?.id) {
+        return candidate;
+      }
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return null;
+}
+
 async function stopServer(server) {
   if (server.exitCode !== null) {
     return;
@@ -122,12 +148,18 @@ async function main() {
   const tmpDir = await mkdtemp(join(tmpdir(), "ik-focus-parity-"));
   const beforePath = join(tmpDir, "pdf-before-focus.png");
   const afterPath = join(tmpDir, "pdf-after-focus.png");
-  const { server, logs } = startDevServer();
+  const existingAppUrl = await detectExistingAppUrl();
+  const serverContext = existingAppUrl ? null : startDevServer();
+  if (existingAppUrl) {
+    appUrl = existingAppUrl;
+  }
   const chromeExecutable = resolveChromeExecutable();
   let browser;
 
   try {
-    await waitForApp(server, logs);
+    if (serverContext) {
+      await waitForApp(serverContext.server, serverContext.logs);
+    }
     browser = await chromium.launch({
       headless: true,
       ...(chromeExecutable ? { executablePath: chromeExecutable } : {}),
@@ -185,7 +217,9 @@ async function main() {
     if (browser) {
       await browser.close();
     }
-    await stopServer(server);
+    if (serverContext) {
+      await stopServer(serverContext.server);
+    }
     await rm(tmpDir, { recursive: true, force: true });
   }
 }

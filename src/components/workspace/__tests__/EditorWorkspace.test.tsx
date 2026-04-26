@@ -165,6 +165,23 @@ describe("EditorWorkspace", () => {
     expect(window.getSelection()?.toString()).toBe("");
   });
 
+  it("clears find highlights when the find dialog closes", async () => {
+    const { container } = render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Find and replace" }));
+    const findDialog = screen.getByRole("dialog", { name: "Find and replace" });
+    await userEvent.type(within(findDialog).getByRole("searchbox", { name: "Find text" }), "motion");
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Find next" }));
+
+    expect(await within(findDialog).findByText("1 of 2")).toBeInTheDocument();
+    expect(container.querySelectorAll(".ik-find-highlight")).toHaveLength(2);
+
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByRole("dialog", { name: "Find and replace" })).not.toBeInTheDocument();
+    expect(container.querySelectorAll(".ik-find-highlight")).toHaveLength(0);
+  });
+
   it("applies match-case and whole-word options to the visible find count", async () => {
     render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
 
