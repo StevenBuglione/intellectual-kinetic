@@ -37,6 +37,11 @@ export function serializeCanonicalDocumentToLatex(
     ]),
     ...(document.settings.bibliographyEngine ? [`% IK bibliography engine: ${document.settings.bibliographyEngine}`] : []),
     ...(document.settings.citationStyle ? [`% IK citation style: ${document.settings.citationStyle}`] : []),
+    ...(document.settings.latexEngine ? [`% IK latex engine: ${document.settings.latexEngine}`] : []),
+    ...(document.settings.languagePackage ? [`% IK language package: ${document.settings.languagePackage}`] : []),
+    ...(document.settings.secondaryLanguages?.length ? [`% IK secondary languages: ${document.settings.secondaryLanguages.join(", ")}`] : []),
+    ...(document.settings.textDirection ? [`% IK text direction: ${document.settings.textDirection}`] : []),
+    ...(document.settings.branches ?? []).map((branch) => `% IK branch: ${branch.id} ${branch.name} ${branch.exportMode}`),
     "\\renewcommand{\\familydefault}{\\sfdefault}",
     "\\setlength{\\parindent}{0pt}",
     "\\setlength{\\parskip}{0.75em}",
@@ -50,6 +55,16 @@ export function serializeCanonicalDocumentToLatex(
     "\\newcommand{\\IkCitationVariant}[2]{\\texttt{@#2}}",
     "\\newcommand{\\IkSemanticInset}[2]{\\textbf{#1:} #2}",
     "\\newcommand{\\IkIncludePlaceholder}[3]{\\texttt{Included \\detokenize{#1} \\detokenize{#3}}}",
+    "\\newcommand{\\IkIncludedChildBegin}[1]{\\texttt{Included \\detokenize{child_document} #1}\\par}",
+    "\\newcommand{\\IkIncludedChildEnd}{\\par}",
+    "\\newcommand{\\IkFrontMatter}[2]{\\textbf{#1:} #2\\par}",
+    "\\newcommand{\\IkBranchBegin}[1]{\\textbf{Branch #1}\\par}",
+    "\\newcommand{\\IkBranchEnd}{\\par}",
+    "\\newcommand{\\IkGeneratedList}[2]{\\textbf{#1}\\par #2\\par}",
+    "\\newcommand{\\IkIndexEntry}[2]{}",
+    "\\newcommand{\\IkGlossaryEntry}[2]{#1}",
+    "\\newcommand{\\IkNomenclatureEntry}[2]{#1}",
+    "\\newcommand{\\IkAssetImage}[3]{\\par\\vspace{0.8em}\\begin{center}\\includegraphics[width=#1]{#2}\\\\[0.35em]#3\\end{center}\\vspace{0.4em}}",
     `\\newcommand{\\IkTableCell}[2]{\\fbox{\\begin{minipage}[t][${table.cellHeightIn}in][c]{#1}#2\\end{minipage}}}`,
     `\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][${figure.placeholderHeightIn}in][c]{${figure.placeholderWidthRatio}\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}`,
     "\\newcommand{\\IkAssetFigurePlaceholder}[4]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][#2][c]{#1}\\centering #3\\end{minipage}}\\\\[0.35em]#4\\end{center}\\vspace{0.4em}}",
@@ -120,21 +135,31 @@ function serializeBlock(
   if (block.type === "table") {
     const caption = block.caption ? serializeInline(block.caption, block, labels, diagnostics) : "";
     const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
-    const columnCount = Math.max(1, ...block.rows.map((row) => row.cells.length));
+    const columnCount = block.layout?.columnWidths?.length
+      ?? Math.max(1, ...block.rows.map((row) => row.cells.reduce((count, cell) => count + (cell.colspan ?? 1), 0)));
     const columnWidths = block.layout?.columnWidths?.length === columnCount
       ? block.layout.columnWidths
       : Array.from({ length: columnCount }, () => 1 / columnCount);
     const rows = block.rows.map((row, index) => {
       const rowBreak = index === block.rows.length - 1 ? "" : "\\\\[-\\fboxrule]";
-      return `\\noindent${row.cells.map((cell, cellIndex) => {
+      let columnCursor = 0;
+      return `\\noindent${row.cells.map((cell) => {
         const contents = serializeInline(cell.children, block, labels, diagnostics);
-        const cellWidth = `${(table.contentWidthIn * (columnWidths[cellIndex] ?? (1 / columnCount))).toFixed(2)}in`;
+        const colspan = cell.colspan ?? 1;
+        const widthRatio = columnWidths
+          .slice(columnCursor, columnCursor + colspan)
+          .reduce((sum, width) => sum + width, 0) || (colspan / columnCount);
+        columnCursor += colspan;
+        const cellWidth = `${(table.contentWidthIn * widthRatio).toFixed(2)}in`;
         const alignedContents = `${serializeAlignment(cell.align)}${cell.header ? `\\textbf{${contents}}` : contents}`;
         return `\\IkTableCell{${cellWidth}}{${alignedContents}}`;
       }).join("")}${rowBreak}`;
     });
 
     return [
+      `% IK table mode: ${block.layout?.tableKind ?? "standard"}`,
+      `% IK table booktabs: ${Boolean(block.layout?.booktabs)}`,
+      `% IK table repeat header: ${Boolean(block.layout?.repeatHeader)}`,
       caption ? `\\textbf{${caption}}${label}` : label,
       "\\par\\vspace{0.35em}",
       ...rows,
@@ -145,6 +170,11 @@ function serializeBlock(
   if (block.type === "figure") {
     const caption = block.caption ? serializeInline(block.caption, block, labels, diagnostics) : "";
     const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
+    if (block.asset?.kind === "embedded") {
+      const width = `${block.asset.widthRatio.toFixed(2)}\\linewidth`;
+      return [`\\IkAssetImage{${width}}{${escapeLatex(block.asset.fileName)}}{${caption}${label}}`, ""];
+    }
+
     if (block.asset) {
       const width = `${block.asset.widthRatio.toFixed(2)}\\linewidth`;
       const height = `${(block.asset.heightPx / 96).toFixed(2)}in`;
@@ -171,7 +201,40 @@ function serializeBlock(
   }
 
   if (block.type === "include") {
+    if (block.exportMode === "expand" && block.resolvedBlocks?.length) {
+      return [
+        `\\IkIncludedChildBegin{${escapeLatex(block.title)}}`,
+        ...block.resolvedBlocks.flatMap((resolvedBlock) => serializeBlock(resolvedBlock, labels, diagnostics)),
+        "\\IkIncludedChildEnd",
+        "",
+      ];
+    }
+
     return [`\\IkIncludePlaceholder{${block.includeKind}}{${block.targetDocumentId}}{${block.title}}`, ""];
+  }
+
+  if (block.type === "front_matter") {
+    return [`\\IkFrontMatter{${escapeLatex(block.frontMatterKind)}}{${serializeInline(block.children, block, labels, diagnostics)}}`, ""];
+  }
+
+  if (block.type === "branch") {
+    if (block.exportMode !== "included") {
+      return [`% IK omitted branch: ${escapeLatex(block.branchId)}`, ""];
+    }
+
+    return [
+      `\\IkBranchBegin{${escapeLatex(block.branchName)}}`,
+      ...block.blocks.flatMap((branchBlock) => serializeBlock(branchBlock, labels, diagnostics)),
+      "\\IkBranchEnd",
+      "",
+    ];
+  }
+
+  if (block.type === "generated_list") {
+    const contents = block.entries
+      .map((entry) => `${escapeLatex(entry.term)}${entry.description ? ` ${escapeLatex(entry.description)}` : ""}`)
+      .join("\\\\ ");
+    return [`\\IkGeneratedList{${escapeLatex(block.title)}}{${contents}}`, ""];
   }
 
   return ["\\newpage", ""];
@@ -179,15 +242,20 @@ function serializeBlock(
 
 function collectLabels(blocks: CanonicalBlock[]): Set<string> {
   const blockLabels = blocks.flatMap((block) => ("label" in block && block.label ? [block.label] : []));
-  const inlineLabels = blocks.flatMap((block) => {
-    if (!("children" in block)) {
-      return [];
+  const nestedBlockLabels = blocks.flatMap((block) => {
+    if (block.type === "branch") {
+      return [...collectLabels(block.blocks)];
     }
 
-    return collectInlineLabels(block.children);
-  });
+    if (block.type === "include" && block.resolvedBlocks) {
+      return [...collectLabels(block.resolvedBlocks)];
+    }
 
-  return new Set([...blockLabels, ...inlineLabels]);
+    return [];
+  });
+  const inlineLabels = blocks.flatMap((block) => ("children" in block ? collectInlineLabels(block.children) : []));
+
+  return new Set([...blockLabels, ...nestedBlockLabels, ...inlineLabels]);
 }
 
 function collectInlineLabels(children: CanonicalInline[]): string[] {
@@ -230,6 +298,18 @@ function serializeInline(
 
       if (child.type === "label") {
         return `\\IkLabel{${escapeLatex(child.target)}}`;
+      }
+
+      if (child.type === "index_entry") {
+        return `\\IkIndexEntry{${escapeLatex(child.term)}}{${escapeLatex(child.sortKey ?? "")}}`;
+      }
+
+      if (child.type === "glossary_entry") {
+        return `\\IkGlossaryEntry{${escapeLatex(child.term)}}{${escapeLatex(child.description)}}`;
+      }
+
+      if (child.type === "nomenclature_entry") {
+        return `\\IkNomenclatureEntry{${escapeLatex(child.symbol)}}{${escapeLatex(child.description)}}`;
       }
 
       if (child.type === "footnote") {

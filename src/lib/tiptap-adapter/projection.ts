@@ -90,6 +90,7 @@ function blockToTiptapNode(block: CanonicalBlock): TiptapNode {
         ...canonicalAttrs,
         label: block.label,
         captionText: block.caption?.map(inlineToPlainText).join(""),
+        layout: block.layout,
       },
       content: block.rows.map((row) => ({
         type: "tableRow",
@@ -172,11 +173,60 @@ function blockToTiptapNode(block: CanonicalBlock): TiptapNode {
         includeKind: block.includeKind,
         targetDocumentId: block.targetDocumentId,
         title: block.title,
+        exportMode: block.exportMode,
+        resolvedBlocks: block.resolvedBlocks,
       },
       content: [
         {
           type: "paragraph",
           content: [{ type: "text", text: `Included ${block.includeKind} ${block.title}` }],
+        },
+      ],
+    };
+  }
+
+  if (block.type === "front_matter") {
+    return {
+      type: "paragraph",
+      attrs: { ...canonicalAttrs, canonicalBlockType: "front_matter", frontMatterKind: block.frontMatterKind },
+      content: inlineToTiptap(block.children),
+    };
+  }
+
+  if (block.type === "branch") {
+    return {
+      type: "blockquote",
+      attrs: {
+        ...canonicalAttrs,
+        canonicalBlockType: "branch",
+        branchId: block.branchId,
+        branchName: block.branchName,
+        exportMode: block.exportMode,
+        branchBlocks: block.blocks,
+      },
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: `Branch ${block.branchName} ${block.blocks.map(blockToPlainText).join(" ")}` }],
+        },
+      ],
+    };
+  }
+
+  if (block.type === "generated_list") {
+    return {
+      type: "blockquote",
+      attrs: {
+        ...canonicalAttrs,
+        canonicalBlockType: "generated_list",
+        listKind: block.listKind,
+        title: block.title,
+        entries: block.entries,
+      },
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: `${block.title} ${block.entries.map((entry) => `${entry.term} ${entry.description ?? ""}`).join(" ")}` }],
         },
       ],
     };
@@ -204,6 +254,18 @@ function inlineToPlainText(child: CanonicalInline): string {
 
   if (child.type === "label") {
     return "";
+  }
+
+  if (child.type === "index_entry") {
+    return "";
+  }
+
+  if (child.type === "glossary_entry") {
+    return child.term;
+  }
+
+  if (child.type === "nomenclature_entry") {
+    return child.symbol;
   }
 
   if (child.type === "footnote") {
@@ -257,6 +319,42 @@ function inlineToTiptap(children: CanonicalInline[]): TiptapNode[] {
         attrs: {
           labelTarget: child.target,
           "data-canonical-kind": "label",
+        },
+      };
+    }
+
+    if (child.type === "index_entry") {
+      return {
+        type: "text",
+        text: "",
+        attrs: {
+          indexTerm: child.term,
+          indexSortKey: child.sortKey,
+          "data-canonical-kind": "index_entry",
+        },
+      };
+    }
+
+    if (child.type === "glossary_entry") {
+      return {
+        type: "text",
+        text: child.term,
+        attrs: {
+          glossaryTerm: child.term,
+          glossaryDescription: child.description,
+          "data-canonical-kind": "glossary_entry",
+        },
+      };
+    }
+
+    if (child.type === "nomenclature_entry") {
+      return {
+        type: "text",
+        text: child.symbol,
+        attrs: {
+          nomenclatureSymbol: child.symbol,
+          nomenclatureDescription: child.description,
+          "data-canonical-kind": "nomenclature_entry",
         },
       };
     }
@@ -364,6 +462,39 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
         includeKind: isIncludeKind(node.attrs?.includeKind) ? node.attrs.includeKind : "child_document",
         targetDocumentId: String(node.attrs?.targetDocumentId ?? ""),
         title: String(node.attrs?.title ?? ""),
+        exportMode: isIncludeExportMode(node.attrs?.exportMode) ? node.attrs.exportMode : undefined,
+        resolvedBlocks: Array.isArray(node.attrs?.resolvedBlocks) ? node.attrs.resolvedBlocks as CanonicalBlock[] : undefined,
+        reviewState,
+      };
+    }
+
+    if (node.attrs?.canonicalBlockType === "branch") {
+      return {
+        id,
+        type: "branch",
+        branchId: String(node.attrs?.branchId ?? id),
+        branchName: String(node.attrs?.branchName ?? "Branch"),
+        exportMode: isBranchExportMode(node.attrs?.exportMode) ? node.attrs.exportMode : "included",
+        blocks: Array.isArray(node.attrs?.branchBlocks) ? node.attrs.branchBlocks as CanonicalBlock[] : [],
+        reviewState,
+      };
+    }
+
+    if (node.attrs?.canonicalBlockType === "generated_list") {
+      return {
+        id,
+        type: "generated_list",
+        listKind: isGeneratedListKind(node.attrs?.listKind) ? node.attrs.listKind : "index",
+        title: String(node.attrs?.title ?? "Generated list"),
+        entries: Array.isArray(node.attrs?.entries)
+          ? node.attrs.entries.map((entry, index) => ({
+            id: String((entry as { id?: unknown }).id ?? `${id}-entry-${index + 1}`),
+            term: String((entry as { term?: unknown }).term ?? ""),
+            description: typeof (entry as { description?: unknown }).description === "string"
+              ? String((entry as { description?: unknown }).description)
+              : undefined,
+          }))
+          : [],
         reviewState,
       };
     }
@@ -402,6 +533,16 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
       };
     }
 
+    if (node.attrs?.canonicalBlockType === "front_matter") {
+      return {
+        id,
+        type: "front_matter",
+        frontMatterKind: isFrontMatterKind(node.attrs?.frontMatterKind) ? node.attrs.frontMatterKind : "preface",
+        children: tiptapInlineToCanonical(node.content ?? []),
+        reviewState,
+      };
+    }
+
     return {
       id,
       type: "paragraph",
@@ -432,6 +573,7 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
       caption: typeof node.attrs?.captionText === "string"
         ? [{ type: "text", text: node.attrs.captionText }]
         : undefined,
+      layout: isTableLayout(node.attrs?.layout) ? node.attrs.layout : undefined,
       rows: (node.content ?? []).map((row, rowIndex) => ({
         id: String(row.attrs?.canonicalRowId ?? `${id}-row-${rowIndex + 1}`),
         cells: (row.content ?? []).map((cell, cellIndex) => ({
@@ -479,6 +621,30 @@ function tiptapInlineToCanonical(nodes: TiptapNode[]): CanonicalInline[] {
       };
     }
 
+    if (typeof node.attrs?.indexTerm === "string") {
+      return {
+        type: "index_entry",
+        term: node.attrs.indexTerm,
+        sortKey: typeof node.attrs?.indexSortKey === "string" ? node.attrs.indexSortKey : undefined,
+      };
+    }
+
+    if (typeof node.attrs?.glossaryTerm === "string") {
+      return {
+        type: "glossary_entry",
+        term: node.attrs.glossaryTerm,
+        description: String(node.attrs.glossaryDescription ?? ""),
+      };
+    }
+
+    if (typeof node.attrs?.nomenclatureSymbol === "string") {
+      return {
+        type: "nomenclature_entry",
+        symbol: node.attrs.nomenclatureSymbol,
+        description: String(node.attrs.nomenclatureDescription ?? ""),
+      };
+    }
+
     if (typeof node.attrs?.commentId === "string") {
       return {
         type: "comment",
@@ -513,6 +679,10 @@ function isListLayout(value: unknown): value is NonNullable<Extract<CanonicalBlo
   return typeof value === "object" && value !== null;
 }
 
+function isTableLayout(value: unknown): value is NonNullable<Extract<CanonicalBlock, { type: "table" }>["layout"]> {
+  return typeof value === "object" && value !== null;
+}
+
 function isFigureAsset(value: unknown): value is NonNullable<Extract<CanonicalBlock, { type: "figure" }>["asset"]> {
   return typeof value === "object" && value !== null && "assetId" in value;
 }
@@ -527,4 +697,36 @@ function isSemanticInsetKind(value: unknown): value is Extract<CanonicalBlock, {
 
 function isIncludeKind(value: unknown): value is Extract<CanonicalBlock, { type: "include" }>["includeKind"] {
   return value === "child_document" || value === "input" || value === "include";
+}
+
+function isIncludeExportMode(value: unknown): value is NonNullable<Extract<CanonicalBlock, { type: "include" }>["exportMode"]> {
+  return value === "placeholder" || value === "expand";
+}
+
+function isBranchExportMode(value: unknown): value is Extract<CanonicalBlock, { type: "branch" }>["exportMode"] {
+  return value === "included" || value === "omitted" || value === "preview-only";
+}
+
+function isGeneratedListKind(value: unknown): value is Extract<CanonicalBlock, { type: "generated_list" }>["listKind"] {
+  return value === "index" || value === "glossary" || value === "nomenclature";
+}
+
+function isFrontMatterKind(value: unknown): value is Extract<CanonicalBlock, { type: "front_matter" }>["frontMatterKind"] {
+  return value === "title" || value === "author" || value === "date" || value === "dedication" || value === "preface";
+}
+
+function blockToPlainText(block: CanonicalBlock): string {
+  if ("children" in block) {
+    return block.children.map(inlineToPlainText).join("");
+  }
+
+  if (block.type === "include") {
+    return `Included ${block.includeKind} ${block.title}`;
+  }
+
+  if (block.type === "generated_list") {
+    return `${block.title} ${block.entries.map((entry) => entry.term).join(" ")}`;
+  }
+
+  return "";
 }

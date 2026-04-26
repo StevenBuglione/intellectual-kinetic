@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateFiveLyxBreadthFixture } from "@/fixtures/parity/gate-five-lyx-breadth";
 import { gateFourLyxCoreFixture } from "@/fixtures/parity/gate-four-lyx-core";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
 import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
@@ -14,10 +15,11 @@ describe("visual editor to PDF parity verification", () => {
       gateTwoScholarlyFixture,
       gateThreeLayoutFixture,
       gateFourLyxCoreFixture,
+      gateFiveLyxBreadthFixture,
     ]);
 
     expect(report.status).toBe("passed");
-    expect(report.fixtures).toHaveLength(5);
+    expect(report.fixtures).toHaveLength(6);
 
     for (const fixture of report.fixtures) {
       expect(fixture.checks).toEqual(
@@ -73,5 +75,10 @@ describe("visual editor to PDF parity verification", () => {
     expect(lyxFixture?.checks).toContain("editor-pdf-page-sequence");
     expect(lyxFixture?.metrics.pageCount).toBe(1);
     expect(lyxFixture?.thresholds.targetDifferentPixels).toBe(0);
+
+    const breadthFixture = report.fixtures.find((fixture) => fixture.id === "fixture-gate-five-lyx-breadth");
+    expect(breadthFixture?.checks).toContain("editor-pdf-page-sequence");
+    expect(breadthFixture?.metrics.pageCount).toBe(1);
+    expect(breadthFixture?.thresholds.targetDifferentPixels).toBe(0);
   }, 90_000);
 });

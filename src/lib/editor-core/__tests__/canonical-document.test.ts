@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateFiveLyxBreadthFixture } from "@/fixtures/parity/gate-five-lyx-breadth";
 import { gateFourLyxCoreFixture } from "@/fixtures/parity/gate-four-lyx-core";
 import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
 import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
@@ -127,5 +128,22 @@ describe("canonical document foundation", () => {
     expect(JSON.stringify(result.document)).toContain("child_document");
     expect(JSON.stringify(result.document)).toContain("sec:lyx-core");
     expect(JSON.stringify(result.document)).toContain("textual");
+  });
+
+  it("validates Gate 5 LyX breadth features and recursive master-document expansion", () => {
+    const result = validateCanonicalDocument(gateFiveLyxBreadthFixture);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(result.errors.join("\n"));
+    }
+    expect(result.document.settings.languagePackage).toBe("babel");
+    expect(result.document.settings.secondaryLanguages).toEqual(["he", "ja"]);
+    expect(JSON.stringify(result.document)).toContain("front_matter");
+    expect(JSON.stringify(result.document)).toContain("generated_list");
+    expect(JSON.stringify(result.document)).toContain("critical-apparatus");
+    expect(JSON.stringify(result.document)).toContain("longtable");
+    expect(JSON.stringify(result.document)).toContain("asset-embedded-evidence");
+    expect(JSON.stringify(result.document)).toContain("Child document expanded into master export.");
   });
 });

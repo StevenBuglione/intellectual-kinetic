@@ -32,6 +32,7 @@ export async function compileCanonicalDocumentToPdf(
 
   try {
     await writeFile(texFile, serialized.source, "utf8");
+    await materializeEmbeddedAssets(document, workingDirectory);
     const compile = await runPdflatex(workingDirectory);
     const pdfPath = path.join(workingDirectory, "main.pdf");
     const pdf = await readFile(pdfPath);
@@ -69,6 +70,30 @@ export async function compileCanonicalDocumentToPdf(
   } finally {
     await rm(workingDirectory, { recursive: true, force: true });
   }
+}
+
+async function materializeEmbeddedAssets(document: CanonicalDocument, workingDirectory: string) {
+  await Promise.all(collectEmbeddedAssets(document.blocks).map((asset) => (
+    writeFile(path.join(workingDirectory, asset.fileName), Buffer.from(asset.dataBase64, "base64"))
+  )));
+}
+
+function collectEmbeddedAssets(blocks: CanonicalDocument["blocks"]) {
+  return blocks.flatMap((block): Array<Extract<NonNullable<Extract<CanonicalDocument["blocks"][number], { type: "figure" }>["asset"]>, { kind: "embedded" }>> => {
+    if (block.type === "figure" && block.asset?.kind === "embedded") {
+      return [block.asset];
+    }
+
+    if (block.type === "branch") {
+      return collectEmbeddedAssets(block.blocks);
+    }
+
+    if (block.type === "include" && block.resolvedBlocks) {
+      return collectEmbeddedAssets(block.resolvedBlocks);
+    }
+
+    return [];
+  });
 }
 
 export function pdfSatisfiesFontContract(pdfFonts: string[]): boolean {

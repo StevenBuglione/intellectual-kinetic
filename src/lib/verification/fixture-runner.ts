@@ -1,4 +1,5 @@
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
+import { gateFiveLyxBreadthFixture } from "@/fixtures/parity/gate-five-lyx-breadth";
 import { gateFourLyxCoreFixture } from "@/fixtures/parity/gate-four-lyx-core";
 import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
 import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
@@ -24,6 +25,7 @@ const fixtures = [
   gateTwoScholarlyFixture,
   gateThreeLayoutFixture,
   gateFourLyxCoreFixture,
+  gateFiveLyxBreadthFixture,
 ];
 
 export async function runParityFixtureVerification(): Promise<FixtureVerificationReport> {

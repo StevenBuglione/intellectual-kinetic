@@ -10,6 +10,15 @@ export type CanonicalDocumentSettings = {
   enabledModules?: string[];
   bibliographyEngine?: "basic" | "natbib" | "biblatex";
   citationStyle?: "numeric" | "authoryear";
+  latexEngine?: "pdflatex" | "xelatex" | "lualatex";
+  languagePackage?: "babel" | "polyglossia";
+  secondaryLanguages?: string[];
+  textDirection?: "ltr" | "rtl";
+  branches?: Array<{
+    id: string;
+    name: string;
+    exportMode: "included" | "omitted" | "preview-only";
+  }>;
   customPreamble?: Array<{
     id: string;
     kind: "package" | "macro";
@@ -56,6 +65,24 @@ export type LabelInline = {
   target: string;
 };
 
+export type IndexEntryInline = {
+  type: "index_entry";
+  term: string;
+  sortKey?: string;
+};
+
+export type GlossaryEntryInline = {
+  type: "glossary_entry";
+  term: string;
+  description: string;
+};
+
+export type NomenclatureEntryInline = {
+  type: "nomenclature_entry";
+  symbol: string;
+  description: string;
+};
+
 export type FootnoteInline = {
   type: "footnote";
   placement?: "inline" | "page_footer";
@@ -83,6 +110,9 @@ export type CanonicalInline =
   | CitationInline
   | ReferenceInline
   | LabelInline
+  | IndexEntryInline
+  | GlossaryEntryInline
+  | NomenclatureEntryInline
   | FootnoteInline
   | LanguageSpanInline
   | CommentInline;
@@ -165,10 +195,30 @@ export type TableBlock = {
   layout?: {
     columnWidths?: number[];
     repeatHeader?: boolean;
+    tableKind?: "standard" | "longtable";
+    booktabs?: boolean;
   };
   provenance?: Provenance;
   reviewState: ReviewState;
 };
+
+export type FigureAsset =
+  | {
+    assetId: string;
+    kind: "placeholder";
+    mimeType: "image/png" | "image/jpeg" | "image/svg+xml";
+    widthRatio: number;
+    heightPx: number;
+  }
+  | {
+    assetId: string;
+    kind: "embedded";
+    mimeType: "image/png" | "image/jpeg";
+    fileName: string;
+    dataBase64: string;
+    widthRatio: number;
+    heightPx: number;
+  };
 
 export type FigureBlock = {
   id: string;
@@ -176,13 +226,7 @@ export type FigureBlock = {
   altText: string;
   caption?: CanonicalInline[];
   label?: string;
-  asset?: {
-    assetId: string;
-    kind: "placeholder";
-    mimeType: "image/png" | "image/jpeg" | "image/svg+xml";
-    widthRatio: number;
-    heightPx: number;
-  };
+  asset?: FigureAsset;
   provenance?: Provenance;
   reviewState: ReviewState;
 };
@@ -240,6 +284,44 @@ export type IncludeBlock = {
   includeKind: "child_document" | "input" | "include";
   targetDocumentId: string;
   title: string;
+  exportMode?: "placeholder" | "expand";
+  resolvedBlocks?: CanonicalBlock[];
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
+export type FrontMatterBlock = {
+  id: string;
+  type: "front_matter";
+  frontMatterKind: "title" | "author" | "date" | "dedication" | "preface";
+  children: CanonicalInline[];
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
+export type BranchBlock = {
+  id: string;
+  type: "branch";
+  branchId: string;
+  branchName: string;
+  exportMode: "included" | "omitted" | "preview-only";
+  blocks: CanonicalBlock[];
+  provenance?: Provenance;
+  reviewState: ReviewState;
+};
+
+export type GeneratedListEntry = {
+  id: string;
+  term: string;
+  description?: string;
+};
+
+export type GeneratedListBlock = {
+  id: string;
+  type: "generated_list";
+  listKind: "index" | "glossary" | "nomenclature";
+  title: string;
+  entries: GeneratedListEntry[];
   provenance?: Provenance;
   reviewState: ReviewState;
 };
@@ -257,7 +339,10 @@ export type CanonicalBlock =
   | QuoteBlock
   | BibliographyBlock
   | SemanticInsetBlock
-  | IncludeBlock;
+  | IncludeBlock
+  | FrontMatterBlock
+  | BranchBlock
+  | GeneratedListBlock;
 
 export type CanonicalDocument = {
   schemaVersion: 1;

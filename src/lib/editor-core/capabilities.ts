@@ -4,7 +4,7 @@ export type ParityCapability = {
   id: string;
   family: string;
   status: ParityCapabilityStatus;
-  gate: "gate-1" | "gate-2" | "gate-3" | "gate-4" | "future";
+  gate: "gate-1" | "gate-2" | "gate-3" | "gate-4" | "gate-5" | "future";
   fixtureFamilies: string[];
 };
 
@@ -148,6 +148,55 @@ export const parityCapabilityRegistry: ParityCapability[] = [
     status: "verified",
     gate: "gate-4",
     fixtureFamilies: ["gate-four-lyx-core"],
+  },
+  {
+    id: "branch-conditional-content",
+    family: "document structure and semantic blocks",
+    status: "verified",
+    gate: "gate-5",
+    fixtureFamilies: ["gate-five-lyx-breadth"],
+  },
+  {
+    id: "titlepage-and-frontmatter",
+    family: "document structure and semantic blocks",
+    status: "verified",
+    gate: "gate-5",
+    fixtureFamilies: ["gate-five-lyx-breadth"],
+  },
+  {
+    id: "index-glossary-nomenclature",
+    family: "index, glossary, and nomenclature features",
+    status: "verified",
+    gate: "gate-5",
+    fixtureFamilies: ["gate-five-lyx-breadth"],
+  },
+  {
+    id: "advanced-table-spans",
+    family: "tables",
+    status: "verified",
+    gate: "gate-5",
+    fixtureFamilies: ["gate-five-lyx-breadth"],
+  },
+  {
+    id: "language-package-selection",
+    family: "language, encoding, and multilingual text features",
+    status: "verified",
+    gate: "gate-5",
+    fixtureFamilies: ["gate-five-lyx-breadth"],
+  },
+  {
+    id: "embedded-asset-export",
+    family: "figures, images, floats, and captions",
+    status: "verified",
+    gate: "gate-5",
+    fixtureFamilies: ["gate-five-lyx-breadth"],
+  },
+  {
+    id: "master-child-export-expansion",
+    family: "document classes and document settings",
+    status: "verified",
+    gate: "gate-5",
+    fixtureFamilies: ["gate-five-lyx-breadth"],
   },
   {
     id: "cjk-and-rtl-support",

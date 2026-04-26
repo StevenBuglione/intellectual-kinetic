@@ -156,6 +156,23 @@ function renderCanonicalDocumentPageToEditorHtml(
         font-family: "Courier New", Courier, monospace;
         font-size: 0.95em;
       }
+      .ik-doc-front-matter,
+      .ik-doc-generated-list {
+        margin: 0 0 ${spacing.paragraphBottomPx}px;
+      }
+      .ik-doc-front-matter strong,
+      .ik-doc-branch strong,
+      .ik-doc-generated-list strong {
+        font-weight: 700;
+      }
+      .ik-doc-branch {
+        margin: ${spacing.blockquoteMarginPx}px 0;
+      }
+      .ik-doc-embedded-asset {
+        display: block;
+        object-fit: contain;
+        border: 1px solid #dadce0;
+      }
     </style>
   </head>
   <body>
@@ -224,11 +241,20 @@ function renderBlock(block: CanonicalBlock): string {
         cell.align ? `text-align:${cell.align}` : "",
         width ? `width:${width * 100}%` : "",
       ].filter(Boolean).join(";");
-      return `<${tag}${style ? ` style="${style}"` : ""}>${renderInline(cell.children)}</${tag}>`;
+      const spanAttrs = [
+        cell.colspan ? `colspan="${cell.colspan}"` : "",
+        cell.rowspan ? `rowspan="${cell.rowspan}"` : "",
+      ].filter(Boolean).join(" ");
+      return `<${tag}${spanAttrs ? ` ${spanAttrs}` : ""}${style ? ` style="${style}"` : ""}>${renderInline(cell.children)}</${tag}>`;
     }).join("")}</tr>`).join("")}</tbody></table></figure>`;
   }
 
   if (block.type === "figure") {
+    if (block.asset?.kind === "embedded") {
+      const assetStyle = `style="width:${block.asset.widthRatio * 100}%;height:${block.asset.heightPx}px"`;
+      return `<figure class="ik-doc-figure-placeholder"><img class="ik-doc-embedded-asset" ${assetStyle} alt="${escapeHtmlAttribute(block.altText)}" src="data:${escapeHtmlAttribute(block.asset.mimeType)};base64,${escapeHtmlAttribute(block.asset.dataBase64)}" />${block.caption ? `<figcaption>${renderInline(block.caption)}</figcaption>` : ""}</figure>`;
+    }
+
     const assetStyle = block.asset
       ? ` style="width:${block.asset.widthRatio * 100}%;min-height:${block.asset.heightPx}px"`
       : "";
@@ -244,7 +270,27 @@ function renderBlock(block: CanonicalBlock): string {
   }
 
   if (block.type === "include") {
+    if (block.exportMode === "expand" && block.resolvedBlocks?.length) {
+      return `<section class="ik-doc-include-placeholder">Included ${escapeHtml(block.includeKind)} ${escapeHtml(block.title)}</section>${block.resolvedBlocks.map(renderBlock).join("\n")}`;
+    }
+
     return `<p class="ik-doc-include-placeholder">Included ${escapeHtml(block.includeKind)} ${escapeHtml(block.title)}</p>`;
+  }
+
+  if (block.type === "front_matter") {
+    return `<p class="ik-doc-front-matter"><strong>${escapeHtml(block.frontMatterKind)}:</strong> ${renderInline(block.children)}</p>`;
+  }
+
+  if (block.type === "branch") {
+    if (block.exportMode !== "included") {
+      return "";
+    }
+
+    return `<section class="ik-doc-branch"><strong>Branch ${escapeHtml(block.branchName)}</strong>${block.blocks.map(renderBlock).join("\n")}</section>`;
+  }
+
+  if (block.type === "generated_list") {
+    return `<section class="ik-doc-generated-list"><strong>${escapeHtml(block.title)}</strong>${block.entries.map((entry) => `<p>${escapeHtml(entry.term)}${entry.description ? ` ${escapeHtml(entry.description)}` : ""}</p>`).join("")}</section>`;
   }
 
   return `<hr class="ik-doc-page-break" />`;
@@ -266,6 +312,18 @@ function renderInline(children: CanonicalInline[]): string {
 
     if (child.type === "label") {
       return `<span data-label-target="${escapeHtmlAttribute(child.target)}"></span>`;
+    }
+
+    if (child.type === "index_entry") {
+      return `<span data-index-term="${escapeHtmlAttribute(child.term)}"></span>`;
+    }
+
+    if (child.type === "glossary_entry") {
+      return `<span data-glossary-term="${escapeHtmlAttribute(child.term)}">${escapeHtml(child.term)}</span>`;
+    }
+
+    if (child.type === "nomenclature_entry") {
+      return `<span data-nomenclature-symbol="${escapeHtmlAttribute(child.symbol)}">${escapeHtml(child.symbol)}</span>`;
     }
 
     if (child.type === "reference") {

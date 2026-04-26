@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateFiveLyxBreadthFixture } from "@/fixtures/parity/gate-five-lyx-breadth";
 import { gateFourLyxCoreFixture } from "@/fixtures/parity/gate-four-lyx-core";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
 import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
@@ -96,5 +97,27 @@ describe("deterministic LaTeX serializer", () => {
     expect(result.source).toContain("\\IkCitationVariant{textual}{lyx2026}");
     expect(result.source).toContain("\\IkCitationVariant{year}{knuth1984}");
     expect(result.source).toContain("\\IkIncludePlaceholder{child_document}{appendix-a}{Appendix A}");
+  });
+
+  it("serializes Gate 5 LyX breadth features into deterministic LaTeX", () => {
+    const result = serializeCanonicalDocumentToLatex(gateFiveLyxBreadthFixture);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.source).toContain("% IK language package: babel");
+    expect(result.source).toContain("% IK secondary languages: he, ja");
+    expect(result.source).toContain("\\IkFrontMatter{title}{Restored Universal Fixture}");
+    expect(result.source).toContain("\\IkBranchBegin{Critical apparatus}");
+    expect(result.source).toContain("Branch content exports into PDF.");
+    expect(result.source).toContain("\\IkIndexEntry{conditional branches}{branches}");
+    expect(result.source).toContain("\\IkGlossaryEntry{restoration}{semantic reconstruction from source evidence}");
+    expect(result.source).toContain("\\IkNomenclatureEntry{k}{kinetic invariant}");
+    expect(result.source).toContain("% IK table mode: longtable");
+    expect(result.source).toContain("% IK table booktabs: true");
+    expect(result.source).toContain("\\IkAssetImage{0.36\\linewidth}{asset-embedded-evidence.png}{Embedded asset crop\\label{fig:embedded-evidence}}");
+    expect(result.source).toContain("\\IkIncludedChildBegin{Appendix B}");
+    expect(result.source).toContain("Child document expanded into master export.");
+    expect(result.source).toContain("\\IkGeneratedList{Index}{conditional branches Breadth Coverage}");
+    expect(result.source).toContain("\\IkGeneratedList{Glossary}{restoration semantic reconstruction from source evidence}");
+    expect(result.source).toContain("\\IkGeneratedList{Nomenclature}{k kinetic invariant}");
   });
 });

@@ -28,6 +28,13 @@ describe("parity capability registry", () => {
       "citation-style-variants",
       "custom-semantic-insets",
       "master-document-placeholders",
+      "branch-conditional-content",
+      "titlepage-and-frontmatter",
+      "index-glossary-nomenclature",
+      "advanced-table-spans",
+      "language-package-selection",
+      "embedded-asset-export",
+      "master-child-export-expansion",
     ]));
 
     expect(getCapability("cjk-and-rtl-support")).toMatchObject({

@@ -27,6 +27,21 @@ const inlineSchema: InlineSchema = z.lazy(() => z.discriminatedUnion("type", [
   z.object({ type: z.literal("reference"), target: z.string().min(1) }),
   z.object({ type: z.literal("label"), target: z.string().min(1) }),
   z.object({
+    type: z.literal("index_entry"),
+    term: z.string().min(1),
+    sortKey: z.string().min(1).optional(),
+  }),
+  z.object({
+    type: z.literal("glossary_entry"),
+    term: z.string().min(1),
+    description: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal("nomenclature_entry"),
+    symbol: z.string().min(1),
+    description: z.string().min(1),
+  }),
+  z.object({
     type: z.literal("footnote"),
     placement: z.enum(["inline", "page_footer"]).optional(),
     children: z.array(inlineSchema),
@@ -53,7 +68,9 @@ const contentBlockBase = {
   reviewState: reviewStateSchema,
 };
 
-const blockSchema = z.discriminatedUnion("type", [
+type BlockSchema = z.ZodType<CanonicalBlock>;
+
+const blockSchema: BlockSchema = z.lazy(() => z.discriminatedUnion("type", [
   z.object({
     ...contentBlockBase,
     type: z.literal("paragraph"),
@@ -112,6 +129,8 @@ const blockSchema = z.discriminatedUnion("type", [
     layout: z.object({
       columnWidths: z.array(z.number().min(0.05).max(1)).optional(),
       repeatHeader: z.boolean().optional(),
+      tableKind: z.enum(["standard", "longtable"]).optional(),
+      booktabs: z.boolean().optional(),
     }).optional(),
     provenance: provenanceSchema.optional(),
     reviewState: reviewStateSchema,
@@ -128,7 +147,15 @@ const blockSchema = z.discriminatedUnion("type", [
       mimeType: z.enum(["image/png", "image/jpeg", "image/svg+xml"]),
       widthRatio: z.number().min(0.1).max(1),
       heightPx: z.number().int().min(24).max(720),
-    }).optional(),
+    }).or(z.object({
+      assetId: z.string().min(1),
+      kind: z.literal("embedded"),
+      mimeType: z.enum(["image/png", "image/jpeg"]),
+      fileName: z.string().min(1),
+      dataBase64: z.string().min(1),
+      widthRatio: z.number().min(0.1).max(1),
+      heightPx: z.number().int().min(1).max(720),
+    })).optional(),
     provenance: provenanceSchema.optional(),
     reviewState: reviewStateSchema,
   }),
@@ -169,10 +196,40 @@ const blockSchema = z.discriminatedUnion("type", [
     includeKind: z.enum(["child_document", "input", "include"]),
     targetDocumentId: z.string().min(1),
     title: z.string().min(1),
+    exportMode: z.enum(["placeholder", "expand"]).optional(),
+    resolvedBlocks: z.array(blockSchema).optional(),
     provenance: provenanceSchema.optional(),
     reviewState: reviewStateSchema,
   }),
-]);
+  z.object({
+    ...contentBlockBase,
+    type: z.literal("front_matter"),
+    frontMatterKind: z.enum(["title", "author", "date", "dedication", "preface"]),
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("branch"),
+    branchId: z.string().min(1),
+    branchName: z.string().min(1),
+    exportMode: z.enum(["included", "omitted", "preview-only"]),
+    blocks: z.array(blockSchema),
+    provenance: provenanceSchema.optional(),
+    reviewState: reviewStateSchema,
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("generated_list"),
+    listKind: z.enum(["index", "glossary", "nomenclature"]),
+    title: z.string().min(1),
+    entries: z.array(z.object({
+      id: z.string().min(1),
+      term: z.string().min(1),
+      description: z.string().min(1).optional(),
+    })),
+    provenance: provenanceSchema.optional(),
+    reviewState: reviewStateSchema,
+  }),
+]));
 
 const canonicalDocumentSchema = z.object({
   schemaVersion: z.literal(canonicalDocumentSchemaVersion),
@@ -189,6 +246,15 @@ const canonicalDocumentSchema = z.object({
     enabledModules: z.array(z.string().min(1)).optional(),
     bibliographyEngine: z.enum(["basic", "natbib", "biblatex"]).optional(),
     citationStyle: z.enum(["numeric", "authoryear"]).optional(),
+    latexEngine: z.enum(["pdflatex", "xelatex", "lualatex"]).optional(),
+    languagePackage: z.enum(["babel", "polyglossia"]).optional(),
+    secondaryLanguages: z.array(z.string().min(1)).optional(),
+    textDirection: z.enum(["ltr", "rtl"]).optional(),
+    branches: z.array(z.object({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      exportMode: z.enum(["included", "omitted", "preview-only"]),
+    })).optional(),
     customPreamble: z.array(z.object({
       id: z.string().min(1),
       kind: z.enum(["package", "macro"]),
@@ -246,6 +312,20 @@ function normalizeBlock(block: CanonicalBlock): CanonicalBlock {
 
         return true;
       }),
+    };
+  }
+
+  if (block.type === "branch") {
+    return {
+      ...block,
+      blocks: block.blocks.map(normalizeBlock),
+    };
+  }
+
+  if (block.type === "include") {
+    return {
+      ...block,
+      resolvedBlocks: block.resolvedBlocks?.map(normalizeBlock),
     };
   }
 

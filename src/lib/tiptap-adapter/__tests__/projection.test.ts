@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateFiveLyxBreadthFixture } from "@/fixtures/parity/gate-five-lyx-breadth";
 import { gateFourLyxCoreFixture } from "@/fixtures/parity/gate-four-lyx-core";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
 import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
@@ -104,5 +105,20 @@ describe("Tiptap projection boundary", () => {
     expect(patch.blocks.map((block) => block.type)).toEqual(gateFourLyxCoreFixture.blocks.map((block) => block.type));
     expect(JSON.stringify(patch.blocks)).toContain("semantic_inset");
     expect(JSON.stringify(patch.blocks)).toContain("include");
+  });
+
+  it("round trips Gate 5 LyX breadth metadata through the adapter boundary", () => {
+    const projected = canonicalToTiptapDocument(gateFiveLyxBreadthFixture);
+    const patch = tiptapDocumentToCanonicalPatch(projected);
+
+    expect(JSON.stringify(projected)).toContain("front_matter");
+    expect(JSON.stringify(projected)).toContain("critical-apparatus");
+    expect(JSON.stringify(projected)).toContain("generated_list");
+    expect(JSON.stringify(projected)).toContain("asset-embedded-evidence");
+    expect(JSON.stringify(projected)).toContain("longtable");
+    expect(JSON.stringify(projected)).toContain("conditional branches");
+    expect(patch.blocks.map((block) => block.type)).toEqual(gateFiveLyxBreadthFixture.blocks.map((block) => block.type));
+    expect(JSON.stringify(patch.blocks)).toContain("Child document expanded into master export.");
+    expect(JSON.stringify(patch.blocks)).toContain("restoration");
   });
 });

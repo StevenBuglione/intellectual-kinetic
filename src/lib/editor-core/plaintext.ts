@@ -48,6 +48,10 @@ function canonicalBlockToEditorText(block: CanonicalBlock): string {
   }
 
   if (block.type === "figure") {
+    if (block.asset?.kind === "embedded") {
+      return block.caption?.map(canonicalInlineToEditorText).join("") ?? "";
+    }
+
     return [block.altText, block.caption?.map(canonicalInlineToEditorText).join("") ?? ""].filter(Boolean).join(" ");
   }
 
@@ -64,11 +68,40 @@ function canonicalBlockToEditorText(block: CanonicalBlock): string {
   }
 
   if (block.type === "include") {
+    if (block.exportMode === "expand" && block.resolvedBlocks?.length) {
+      return [
+        `Included ${block.includeKind} ${block.title}`,
+        ...block.resolvedBlocks.map(canonicalBlockToEditorText),
+      ].filter(Boolean).join(" ");
+    }
+
     return `Included ${block.includeKind} ${block.title}`;
   }
 
   if (block.type === "semantic_inset") {
     return `${block.insetKind}: ${block.children.map(canonicalInlineToEditorText).join("")}`;
+  }
+
+  if (block.type === "front_matter") {
+    return `${block.frontMatterKind}: ${block.children.map(canonicalInlineToEditorText).join("")}`;
+  }
+
+  if (block.type === "branch") {
+    if (block.exportMode !== "included") {
+      return "";
+    }
+
+    return [
+      `Branch ${block.branchName}`,
+      ...block.blocks.map(canonicalBlockToEditorText),
+    ].filter(Boolean).join(" ");
+  }
+
+  if (block.type === "generated_list") {
+    return [
+      block.title,
+      ...block.entries.map((entry) => [entry.term, entry.description ?? ""].filter(Boolean).join(" ")),
+    ].join(" ");
   }
 
   return "children" in block ? block.children.map(canonicalInlineToEditorText).join("") : "";
@@ -101,6 +134,18 @@ function canonicalInlineToEditorText(child: CanonicalInline): string {
 
   if (child.type === "label") {
     return "";
+  }
+
+  if (child.type === "index_entry") {
+    return "";
+  }
+
+  if (child.type === "glossary_entry") {
+    return child.term;
+  }
+
+  if (child.type === "nomenclature_entry") {
+    return child.symbol;
   }
 
   if (child.type === "footnote") {
