@@ -145,8 +145,8 @@ async function main() {
     await findDialog.getByRole("button", { name: "Find next" }).click();
     await page.getByText("1 of 2").waitFor({ state: "visible" });
     const selectedMatch = await page.evaluate(() => window.getSelection()?.toString() ?? "");
-    if (selectedMatch.toLocaleLowerCase() !== "motion") {
-      throw new Error(`Find next did not select matching editor text; selected ${JSON.stringify(selectedMatch)}.`);
+    if (selectedMatch !== "") {
+      throw new Error(`Find next should not leave blue browser text selection over find highlights; selected ${JSON.stringify(selectedMatch)}.`);
     }
     const initialHighlights = await page.locator(".ik-find-highlight").evaluateAll((nodes) => (
       nodes.map((node) => ({
@@ -162,8 +162,8 @@ async function main() {
     await findDialog.getByRole("button", { name: "Find next" }).click();
     await page.getByText("1 of 1").waitFor({ state: "visible" });
     const selectedCaseSensitiveMatch = await page.evaluate(() => window.getSelection()?.toString() ?? "");
-    if (selectedCaseSensitiveMatch !== "motion") {
-      throw new Error(`Match case did not select the lowercase visible match; selected ${JSON.stringify(selectedCaseSensitiveMatch)}.`);
+    if (selectedCaseSensitiveMatch !== "") {
+      throw new Error(`Match case should not leave blue browser text selection; selected ${JSON.stringify(selectedCaseSensitiveMatch)}.`);
     }
     const caseSensitiveHighlights = await page.locator(".ik-find-highlight").count();
     if (caseSensitiveHighlights !== 1) {
@@ -174,8 +174,8 @@ async function main() {
     await findDialog.getByRole("button", { name: "Find next" }).click();
     await page.getByText("1 of 1").waitFor({ state: "visible" });
     const selectedTitleMatch = await page.evaluate(() => window.getSelection()?.toString() ?? "");
-    if (selectedTitleMatch !== "Motion") {
-      throw new Error(`Match case did not select the title match; selected ${JSON.stringify(selectedTitleMatch)}.`);
+    if (selectedTitleMatch !== "") {
+      throw new Error(`Match case title find should not leave blue browser text selection; selected ${JSON.stringify(selectedTitleMatch)}.`);
     }
 
     await findDialog.getByRole("textbox", { name: "Replace with" }).fill("movement");
@@ -199,8 +199,8 @@ async function main() {
     await findDialog.getByRole("button", { name: "Find next" }).click();
     await page.getByText("1 of 1").waitFor({ state: "visible" });
     const selectedWholeWordMatch = await page.evaluate(() => window.getSelection()?.toString() ?? "");
-    if (selectedWholeWordMatch !== "v") {
-      throw new Error(`Whole word did not isolate the standalone visible match; selected ${JSON.stringify(selectedWholeWordMatch)}.`);
+    if (selectedWholeWordMatch !== "") {
+      throw new Error(`Whole word should not leave blue browser text selection; selected ${JSON.stringify(selectedWholeWordMatch)}.`);
     }
 
     await findDialog.getByRole("searchbox", { name: "Find text" }).fill("Let v");
@@ -247,7 +247,7 @@ async function main() {
       throw new Error(`Browser console errors were emitted:\n${consoleErrors.join("\n")}`);
     }
 
-    console.log("Editor workflow browser verification passed: Ctrl-F floating find, selected find match, cross-inline replace, no math duplication, transparent TeX selection layer.");
+    console.log("Editor workflow browser verification passed: Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
   } finally {
     if (browser) {
       await browser.close();

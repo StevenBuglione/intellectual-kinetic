@@ -152,6 +152,19 @@ describe("EditorWorkspace", () => {
     expect(container.querySelector(".ik-find-highlight-current")).toHaveTextContent("Motion");
   });
 
+  it("does not keep the browser selection over the current find highlight", async () => {
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Find and replace" }));
+    const findDialog = screen.getByRole("dialog", { name: "Find and replace" });
+    await userEvent.type(within(findDialog).getByRole("searchbox", { name: "Find text" }), "motion");
+
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Find next" }));
+
+    expect(await within(findDialog).findByText("1 of 2")).toBeInTheDocument();
+    expect(window.getSelection()?.toString()).toBe("");
+  });
+
   it("applies match-case and whole-word options to the visible find count", async () => {
     render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
 

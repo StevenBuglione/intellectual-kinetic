@@ -9,7 +9,7 @@ import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import { Extension, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
+import { Plugin, PluginKey, Selection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -292,7 +292,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     const match = matches[nextIndex];
 
     updateFindHighlights(editor, matches, nextIndex);
-    editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, match.from, match.to)));
+    editor.view.dispatch(editor.state.tr.setSelection(Selection.near(editor.state.doc.resolve(match.to), 1)));
     editor.view.focus();
     setFindCursor(nextIndex);
     setFindStatus({ activeIndex: nextIndex + 1, total: matches.length });
@@ -335,7 +335,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       return;
     }
 
-    const selectedMatch = currentSelectedFindMatch(editor, matches) ?? matches[findCursor] ?? matches[0];
+    const selectedMatch = matches[findCursor] ?? matches[0];
     replaceEditorTextRanges(editor, [selectedMatch], replaceText);
     syncDocumentFromEditor(editor);
     updateFindHighlights(editor, [], -1);
@@ -963,12 +963,6 @@ function isWholeWordMatch(characters: SearchCharacter[], startIndex: number, end
 
 function isWordCharacter(value: string): boolean {
   return /^[\p{L}\p{N}_]$/u.test(value);
-}
-
-function currentSelectedFindMatch(editor: Editor, matches: EditorTextMatch[]): EditorTextMatch | undefined {
-  const { from, to } = editor.state.selection;
-
-  return matches.find((match) => match.from === from && match.to === to);
 }
 
 function updateFindHighlights(editor: Editor | null, matches: EditorTextMatch[], currentIndex: number) {
