@@ -44,7 +44,7 @@ describe("EditorWorkspace", () => {
       diagnostics: [],
       extractedText: [
         "A Treatise on Motion",
-        "Let v denote velocity and cite.",
+        "Let v denote velocity and cite @newton1687.",
         "Uniform motion preserves proportional distance.",
         "s = vt",
       ].join("\n"),
@@ -64,6 +64,6 @@ describe("EditorWorkspace", () => {
     expect(within(sourcePanel).getByText("0 diagnostics")).toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "Source review" })).toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "PDF preview" })).toBeInTheDocument();
-    expect(await screen.findByText("PDF text verified from current AST")).toBeInTheDocument();
+    expect(await screen.findByText("PDF text matches editor")).toBeInTheDocument();
   });
 });

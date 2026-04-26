@@ -14,7 +14,7 @@ describe("fixture-driven parity verification", () => {
           "tiptap-projection",
           "latex-serialization",
           "pdf-compilation",
-          "pdf-text-extraction",
+          "pdf-text-parity",
         ]),
       }),
     ]);

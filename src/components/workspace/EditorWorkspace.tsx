@@ -41,6 +41,7 @@ import {
   Video,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { compareCanonicalDocumentToPdfText } from "@/lib/editor-core/plaintext";
 import type { CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
 import type { LatexCompileResult } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
@@ -68,7 +69,7 @@ const MathInline = Node.create({
     return [
       "span",
       mergeAttributes(HTMLAttributes, { class: "ik-math-inline" }),
-      `\\(${HTMLAttributes.tex}\\)`,
+      HTMLAttributes.tex,
     ];
   },
 });
@@ -84,7 +85,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [compiledPreview, setCompiledPreview] = useState<LatexCompileResult | null>(null);
   const latex = useMemo(() => serializeCanonicalDocumentToLatex(document), [document]);
   const pdfTextVerification = useMemo(
-    () => verifyPdfTextContainsCurrentDocument(document, compiledPreview?.extractedText),
+    () => compareCanonicalDocumentToPdfText(document, compiledPreview?.extractedText),
     [compiledPreview?.extractedText, document],
   );
 
@@ -424,11 +425,11 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             {compiledPreview?.status === "compiled" && pdfTextVerification.verified ? (
               <div className="ik-pdf-verification" aria-label="PDF text verification">
                 <CheckCircle2 size={16} />
-                <span>PDF text verified from current AST</span>
+                <span>PDF text matches editor</span>
               </div>
             ) : compiledPreview?.status === "compiled" && compiledPreview.extractedText ? (
               <div className="ik-pdf-verification ik-pdf-verification-warning" aria-label="PDF text verification">
-                <span>PDF text missing current AST text</span>
+                <span>PDF text differs from editor</span>
               </div>
             ) : null}
           </aside>
@@ -492,56 +493,18 @@ function renderInlineFallback(child: CanonicalInline, index: number) {
   if (child.type === "math_inline") {
     return (
       <code className="ik-math-inline" key={`${child.tex}-${index}`}>
-        {`\\(${child.tex}\\)`}
+        {child.tex}
       </code>
     );
   }
 
   if (child.type === "citation") {
-    return `[${child.key}]`;
+    return `@${child.key}`;
   }
 
   if (child.type === "reference") {
-    return child.target;
+    return `[[${child.target}]]`;
   }
 
   return null;
-}
-
-function verifyPdfTextContainsCurrentDocument(
-  document: CanonicalDocument,
-  extractedText: string | undefined,
-) {
-  if (!extractedText) {
-    return { verified: false, missing: [] };
-  }
-
-  const normalizedPdfText = normalizeComparableText(extractedText);
-  const expectedSnippets = document.blocks.flatMap((block) => {
-    if (block.type === "heading" || block.type === "paragraph" || block.type === "theorem") {
-      return block.children.flatMap((child) => {
-        if (child.type === "text" && child.text.trim().length > 0) {
-          return [child.text];
-        }
-
-        return [];
-      });
-    }
-
-    if (block.type === "math_display") {
-      return [block.tex];
-    }
-
-    return [];
-  });
-  const missing = expectedSnippets.filter((snippet) => !normalizedPdfText.includes(normalizeComparableText(snippet)));
-
-  return {
-    verified: missing.length === 0,
-    missing,
-  };
-}
-
-function normalizeComparableText(value: string): string {
-  return value.replace(/\s+/g, "").trim();
 }

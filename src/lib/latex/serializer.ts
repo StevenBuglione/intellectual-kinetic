@@ -25,8 +25,10 @@ export function serializeCanonicalDocumentToLatex(
     `% Generated deterministically from canonical AST ${document.id}`,
     `\\documentclass{${document.settings.documentClass}}`,
     ...document.settings.modules.map((moduleName) => `\\usepackage{${moduleName}}`),
-    "\\newtheorem{theorem}{Theorem}",
+    "\\makeatletter\\let\\ps@plain\\ps@empty\\makeatother",
+    "\\pagestyle{empty}",
     "\\begin{document}",
+    "\\thispagestyle{empty}",
     "",
     ...document.blocks.flatMap((block) => serializeBlock(block, labels, diagnostics)),
     "\\end{document}",
@@ -45,7 +47,7 @@ function serializeBlock(
   diagnostics: LatexDiagnostic[],
 ): string[] {
   if (block.type === "heading") {
-    const command = block.level === 1 ? "chapter" : block.level === 2 ? "section" : "subsection";
+    const command = block.level === 1 ? "chapter*" : block.level === 2 ? "section*" : "subsection*";
     return [`\\${command}{${serializeInline(block.children, block, labels, diagnostics)}}`, ""];
   }
 
@@ -56,16 +58,15 @@ function serializeBlock(
   if (block.type === "theorem") {
     const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
     return [
-      `\\begin{theorem}${label}`,
+      `\\begin{quote}${label}`,
       serializeInline(block.children, block, labels, diagnostics),
-      "\\end{theorem}",
+      "\\end{quote}",
       "",
     ];
   }
 
-  const environment = block.numbered ? "equation" : "equation*";
   const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
-  return [`\\begin{${environment}}${label}`, block.tex, `\\end{${environment}}`, ""];
+  return [label, `\\[${block.tex}\\]`, ""];
 }
 
 function serializeInline(
@@ -85,7 +86,7 @@ function serializeInline(
       }
 
       if (child.type === "citation") {
-        return `\\cite{${escapeLatex(child.key)}}`;
+        return `\\texttt{@${escapeLatex(child.key)}}`;
       }
 
       if (!labels.has(child.target)) {
@@ -98,7 +99,7 @@ function serializeInline(
         });
       }
 
-      return `\\ref{${escapeLatex(child.target)}}`;
+      return `\\texttt{[[${escapeLatex(child.target)}]]}`;
     })
     .join("");
 }

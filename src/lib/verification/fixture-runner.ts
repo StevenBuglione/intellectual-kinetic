@@ -1,5 +1,6 @@
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { validateCanonicalDocument } from "@/lib/editor-core/canonical-document";
+import { compareCanonicalDocumentToPdfText } from "@/lib/editor-core/plaintext";
 import { compileCanonicalDocumentToPdf } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
 import { canonicalToTiptapDocument } from "@/lib/tiptap-adapter/projection";
@@ -48,24 +49,13 @@ export async function runParityFixtureVerification(): Promise<FixtureVerificatio
       errors.push("PDF compilation failed.");
     }
 
-    const expectedText = fixture.blocks.flatMap((block) => {
-      if (block.type === "paragraph" || block.type === "heading" || block.type === "theorem") {
-        return block.children.flatMap((child) => (child.type === "text" ? [child.text.trim()] : []));
-      }
-
-      if (block.type === "math_display") {
-        return [block.tex.replaceAll(" ", "")];
-      }
-
-      return [];
-    }).filter(Boolean);
-
-    const extractedText = normalizePdfText(pdf.extractedText ?? "");
-    const missingText = expectedText.filter((text) => !extractedText.includes(normalizePdfText(text)));
-    if (pdf.status === "compiled" && missingText.length === 0) {
-      checks.push("pdf-text-extraction");
+    const textParity = compareCanonicalDocumentToPdfText(fixture, pdf.extractedText);
+    if (pdf.status === "compiled" && textParity.verified) {
+      checks.push("pdf-text-parity");
     } else {
-      errors.push(`PDF text extraction did not contain expected fixture text: ${missingText.join(", ")}`);
+      errors.push(
+        `PDF text does not match editor text. Expected "${textParity.expectedText}", received "${textParity.actualText}".`,
+      );
     }
 
     return {
@@ -79,8 +69,4 @@ export async function runParityFixtureVerification(): Promise<FixtureVerificatio
     status: fixtureReports.every((fixture) => fixture.errors.length === 0) ? "passed" : "failed",
     fixtures: fixtureReports,
   };
-}
-
-function normalizePdfText(value: string): string {
-  return value.replace(/\s+/g, " ").replaceAll(" ", "").trim();
 }
