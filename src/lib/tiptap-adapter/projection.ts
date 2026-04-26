@@ -74,7 +74,7 @@ function blockToTiptapNode(block: CanonicalBlock): TiptapNode {
   if (block.type === "list") {
     return {
       type: block.ordered ? "orderedList" : "bulletList",
-      attrs: { ...canonicalAttrs, ordered: block.ordered },
+      attrs: { ...canonicalAttrs, ordered: block.ordered, layout: block.layout },
       content: block.items.map((item) => ({
         type: "listItem",
         attrs: { canonicalItemId: item.id },
@@ -98,6 +98,7 @@ function blockToTiptapNode(block: CanonicalBlock): TiptapNode {
           type: cell.header ? "tableHeader" : "tableCell",
           attrs: {
             canonicalCellId: cell.id,
+            align: cell.align,
             colspan: cell.colspan,
             rowspan: cell.rowspan,
           },
@@ -115,6 +116,7 @@ function blockToTiptapNode(block: CanonicalBlock): TiptapNode {
         canonicalBlockType: "figure",
         altText: block.altText,
         label: block.label,
+        asset: block.asset,
       },
       content: [{ type: "paragraph", content: inlineToTiptap(block.caption ?? [{ type: "text", text: block.altText }]) }],
     };
@@ -181,6 +183,10 @@ function inlineToPlainText(child: CanonicalInline): string {
     return child.children.map(inlineToPlainText).join("");
   }
 
+  if (child.type === "comment") {
+    return `[comment: ${child.children.map(inlineToPlainText).join("")} - ${child.comment}]`;
+  }
+
   return `[[${child.target}]]`;
 }
 
@@ -214,6 +220,7 @@ function inlineToTiptap(children: CanonicalInline[]): TiptapNode[] {
       type: "text",
       text: `(note: ${child.children.map(inlineToPlainText).join("")})`,
       marks: [{ type: "code" }],
+      attrs: { placement: child.placement },
     };
   }
 
@@ -221,6 +228,20 @@ function inlineToTiptap(children: CanonicalInline[]): TiptapNode[] {
     return {
       type: "text",
       text: child.children.map(inlineToPlainText).join(""),
+    };
+  }
+
+  if (child.type === "comment") {
+    return {
+      type: "text",
+      text: `[comment: ${child.children.map(inlineToPlainText).join("")} - ${child.comment}]`,
+      marks: [{ type: "code" }],
+      attrs: {
+        commentId: child.id,
+        commentAuthor: child.author,
+        commentStatus: child.status,
+        commentText: child.comment,
+      },
     };
   }
 
@@ -264,6 +285,7 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
         type: "figure",
         altText: String(node.attrs?.altText ?? ""),
         label: typeof node.attrs?.label === "string" ? node.attrs.label : undefined,
+        asset: isFigureAsset(node.attrs?.asset) ? node.attrs.asset : undefined,
         caption: tiptapInlineToCanonical(node.content?.flatMap((child) => child.content ?? []) ?? []),
         reviewState,
       };
@@ -326,6 +348,7 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
       id,
       type: "list",
       ordered: node.type === "orderedList",
+      layout: isListLayout(node.attrs?.layout) ? node.attrs.layout : undefined,
       items: (node.content ?? []).map((item, index) => ({
         id: String(item.attrs?.canonicalItemId ?? `${id}-item-${index + 1}`),
         children: tiptapInlineToCanonical(item.content?.flatMap((child) => child.content ?? []) ?? []),
@@ -347,6 +370,7 @@ function tiptapNodeToBlock(node: TiptapNode): CanonicalBlock | null {
         cells: (row.content ?? []).map((cell, cellIndex) => ({
           id: String(cell.attrs?.canonicalCellId ?? `${id}-cell-${rowIndex + 1}-${cellIndex + 1}`),
           header: cell.type === "tableHeader",
+          align: cell.attrs?.align === "center" || cell.attrs?.align === "right" ? cell.attrs.align : "left",
           colspan: typeof cell.attrs?.colspan === "number" ? cell.attrs.colspan : undefined,
           rowspan: typeof cell.attrs?.rowspan === "number" ? cell.attrs.rowspan : undefined,
           children: tiptapInlineToCanonical(cell.content?.flatMap((child) => child.content ?? []) ?? []),
@@ -373,9 +397,40 @@ function tiptapInlineToCanonical(nodes: TiptapNode[]): CanonicalInline[] {
       return { type: "math_inline", tex: String(node.attrs?.tex ?? "") };
     }
 
+    if (typeof node.attrs?.commentId === "string") {
+      return {
+        type: "comment",
+        id: node.attrs.commentId,
+        author: String(node.attrs.commentAuthor ?? "Editor"),
+        status: node.attrs.commentStatus === "resolved" ? "resolved" : "open",
+        children: [{ type: "text", text: stripCommentWrapper(node.text ?? "") }],
+        comment: String(node.attrs.commentText ?? ""),
+      };
+    }
+
+    if (node.attrs?.placement === "page_footer" && node.text?.startsWith("(note: ")) {
+      return {
+        type: "footnote",
+        placement: "page_footer",
+        children: [{ type: "text", text: node.text.replace(/^\(note: /, "").replace(/\)$/, "") }],
+      };
+    }
+
     return {
       type: "text",
       text: node.text ?? "",
     };
   });
+}
+
+function stripCommentWrapper(value: string): string {
+  return value.replace(/^\[comment: /, "").replace(/ - .+\]$/, "");
+}
+
+function isListLayout(value: unknown): value is NonNullable<Extract<CanonicalBlock, { type: "list" }>["layout"]> {
+  return typeof value === "object" && value !== null;
+}
+
+function isFigureAsset(value: unknown): value is NonNullable<Extract<CanonicalBlock, { type: "figure" }>["asset"]> {
+  return typeof value === "object" && value !== null && "assetId" in value;
 }

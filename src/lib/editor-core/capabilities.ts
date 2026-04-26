@@ -4,7 +4,7 @@ export type ParityCapability = {
   id: string;
   family: string;
   status: ParityCapabilityStatus;
-  gate: "gate-1" | "gate-2" | "future";
+  gate: "gate-1" | "gate-2" | "gate-3" | "future";
   fixtureFamilies: string[];
 };
 
@@ -99,6 +99,27 @@ export const parityCapabilityRegistry: ParityCapability[] = [
     status: "verified",
     gate: "gate-2",
     fixtureFamilies: ["gate-two-scholarly"],
+  },
+  {
+    id: "asset-backed-figures",
+    family: "figures, images, floats, and captions",
+    status: "verified",
+    gate: "gate-3",
+    fixtureFamilies: ["gate-three-layout"],
+  },
+  {
+    id: "comment-annotations",
+    family: "editing workflow and annotation surfaces",
+    status: "verified",
+    gate: "gate-3",
+    fixtureFamilies: ["gate-three-layout"],
+  },
+  {
+    id: "layout-metadata-preservation",
+    family: "page, layout, and flow control",
+    status: "verified",
+    gate: "gate-3",
+    fixtureFamilies: ["gate-three-layout"],
   },
   {
     id: "cjk-and-rtl-support",

@@ -21,6 +21,9 @@ describe("parity capability registry", () => {
       "footnote-insets",
       "multilingual-language-selection",
       "bibliography-insert-manage",
+      "asset-backed-figures",
+      "comment-annotations",
+      "layout-metadata-preservation",
     ]));
 
     expect(getCapability("cjk-and-rtl-support")).toMatchObject({

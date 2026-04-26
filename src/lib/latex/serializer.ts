@@ -32,6 +32,7 @@ export function serializeCanonicalDocumentToLatex(
     "\\usepackage[scaled]{helvet}",
     "\\usepackage{xcolor}",
     "\\usepackage{array}",
+    "\\usepackage{enumitem}",
     "\\renewcommand{\\familydefault}{\\sfdefault}",
     "\\setlength{\\parindent}{0pt}",
     "\\setlength{\\parskip}{0.75em}",
@@ -39,8 +40,11 @@ export function serializeCanonicalDocumentToLatex(
     `\\newcommand{\\IkHeadingTwo}[1]{{\\fontsize{${typography.headingTwoFontSizePt}pt}{${typography.headingTwoLineHeightPt}pt}\\selectfont\\bfseries #1}\\par\\vspace{0.3em}}`,
     `\\newcommand{\\IkHeadingThree}[1]{{\\fontsize{${typography.headingThreeFontSizePt}pt}{${typography.headingThreeLineHeightPt}pt}\\selectfont\\bfseries #1}\\par\\vspace{0.25em}}`,
     "\\newcommand{\\IkTheoremBlock}[1]{\\par\\vspace{0.6em}\\noindent\\hspace{0.25in}\\begin{minipage}{0.86\\linewidth}#1\\end{minipage}\\par\\vspace{0.6em}}",
-    `\\newcommand{\\IkTableCell}[2]{\\fbox{\\begin{minipage}[t][${table.cellHeightIn}in][c]{#1}\\raggedright #2\\end{minipage}}}`,
+    "\\newcommand{\\IkComment}[4]{\\texttt{[comment: #3 - #4]}}",
+    "\\newcommand{\\IkPlacedFootnote}[1]{\\texttt{(note: #1)}}",
+    `\\newcommand{\\IkTableCell}[2]{\\fbox{\\begin{minipage}[t][${table.cellHeightIn}in][c]{#1}#2\\end{minipage}}}`,
     `\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][${figure.placeholderHeightIn}in][c]{${figure.placeholderWidthRatio}\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}`,
+    "\\newcommand{\\IkAssetFigurePlaceholder}[4]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][#2][c]{#1}\\centering #3\\end{minipage}}\\\\[0.35em]#4\\end{center}\\vspace{0.4em}}",
     "\\makeatletter\\let\\ps@plain\\ps@empty\\makeatother",
     "\\pagestyle{empty}",
     "\\begin{document}",
@@ -91,10 +95,16 @@ function serializeBlock(
 
   if (block.type === "list") {
     const environment = block.ordered ? "enumerate" : "itemize";
+    const enumOptions = block.layout?.markerStyle === "lower-alpha"
+      ? "[label=\\alph*.]"
+      : "";
+    const leftSkip = block.layout?.indentLevel ? `${(block.layout.indentLevel * 0.25).toFixed(2)}in` : undefined;
     return [
-      `\\begin{${environment}}`,
+      ...(leftSkip ? [`\\begingroup`, `\\setlength{\\leftskip}{${leftSkip}}`] : []),
+      `\\begin{${environment}}${enumOptions}`,
       ...block.items.map((item) => `\\item ${serializeInline(item.children, block, labels, diagnostics)}`),
       `\\end{${environment}}`,
+      ...(leftSkip ? ["\\endgroup"] : []),
       "",
     ];
   }
@@ -103,12 +113,16 @@ function serializeBlock(
     const caption = block.caption ? serializeInline(block.caption, block, labels, diagnostics) : "";
     const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
     const columnCount = Math.max(1, ...block.rows.map((row) => row.cells.length));
-    const cellWidth = `${(table.contentWidthIn / columnCount).toFixed(2)}in`;
+    const columnWidths = block.layout?.columnWidths?.length === columnCount
+      ? block.layout.columnWidths
+      : Array.from({ length: columnCount }, () => 1 / columnCount);
     const rows = block.rows.map((row, index) => {
       const rowBreak = index === block.rows.length - 1 ? "" : "\\\\[-\\fboxrule]";
-      return `\\noindent${row.cells.map((cell) => {
+      return `\\noindent${row.cells.map((cell, cellIndex) => {
         const contents = serializeInline(cell.children, block, labels, diagnostics);
-        return `\\IkTableCell{${cellWidth}}{${cell.header ? `\\textbf{${contents}}` : contents}}`;
+        const cellWidth = `${(table.contentWidthIn * (columnWidths[cellIndex] ?? (1 / columnCount))).toFixed(2)}in`;
+        const alignedContents = `${serializeAlignment(cell.align)}${cell.header ? `\\textbf{${contents}}` : contents}`;
+        return `\\IkTableCell{${cellWidth}}{${alignedContents}}`;
       }).join("")}${rowBreak}`;
     });
 
@@ -123,6 +137,12 @@ function serializeBlock(
   if (block.type === "figure") {
     const caption = block.caption ? serializeInline(block.caption, block, labels, diagnostics) : "";
     const label = block.label ? `\\label{${escapeLatex(block.label)}}` : "";
+    if (block.asset) {
+      const width = `${block.asset.widthRatio.toFixed(2)}\\linewidth`;
+      const height = `${(block.asset.heightPx / 96).toFixed(2)}in`;
+      return [`\\IkAssetFigurePlaceholder{${width}}{${height}}{${escapeLatex(block.altText)}}{${caption}${label}}`, ""];
+    }
+
     return [`\\IkFigurePlaceholder{${escapeLatex(block.altText)}}{${caption}${label}}`, ""];
   }
 
@@ -162,11 +182,19 @@ function serializeInline(
       }
 
       if (child.type === "footnote") {
+        if (child.placement === "page_footer") {
+          return `\\IkPlacedFootnote{${serializeInline(child.children, block, labels, diagnostics)}}`;
+        }
+
         return `\\texttt{(note: ${serializeInline(child.children, block, labels, diagnostics)})}`;
       }
 
       if (child.type === "language_span") {
         return serializeInline(child.children, block, labels, diagnostics);
+      }
+
+      if (child.type === "comment") {
+        return `\\IkComment{${escapeLatex(child.author)}}{${escapeLatex(child.status)}}{${serializeInline(child.children, block, labels, diagnostics)}}{${escapeLatex(child.comment)}}`;
       }
 
       if (!labels.has(child.target)) {
@@ -182,6 +210,22 @@ function serializeInline(
       return `\\texttt{[[${escapeLatex(child.target)}]]}`;
     })
     .join("");
+}
+
+function serializeAlignment(align: "left" | "center" | "right" | undefined): string {
+  if (align === "center") {
+    return "\\centering ";
+  }
+
+  if (align === "right") {
+    return "\\raggedleft ";
+  }
+
+  if (align === "left") {
+    return "\\raggedright ";
+  }
+
+  return "";
 }
 
 function escapeLatex(value: string): string {

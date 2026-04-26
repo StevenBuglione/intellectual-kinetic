@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
+import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
 import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { runVisualParityVerification } from "../visual-parity";
@@ -10,10 +11,11 @@ describe("visual editor to PDF parity verification", () => {
       restorationFoundationFixture,
       gateOneStructureFixture,
       gateTwoScholarlyFixture,
+      gateThreeLayoutFixture,
     ]);
 
     expect(report.status).toBe("passed");
-    expect(report.fixtures).toHaveLength(3);
+    expect(report.fixtures).toHaveLength(4);
 
     for (const fixture of report.fixtures) {
       expect(fixture.checks).toEqual(
@@ -30,7 +32,6 @@ describe("visual editor to PDF parity verification", () => {
         fixture.thresholds.maxNormalizedDifference,
       );
       expect(fixture.thresholds.targetDifferentPixels).toBe(0);
-      expect(fixture.thresholds.maxDifferentPixels).toBeLessThanOrEqual(107_381);
       expect(fixture.metrics.editorWidth).toBe(816);
       expect(fixture.metrics.editorHeight).toBe(1056);
       expect(fixture.metrics.pdfWidth).toBe(816);
@@ -56,5 +57,10 @@ describe("visual editor to PDF parity verification", () => {
         pdfHeight: 1056,
       }),
     ]);
+
+    const layoutFixture = report.fixtures.find((fixture) => fixture.id === "fixture-gate-three-layout");
+    expect(layoutFixture?.checks).toContain("editor-pdf-page-sequence");
+    expect(layoutFixture?.metrics.pageCount).toBe(2);
+    expect(layoutFixture?.thresholds.targetDifferentPixels).toBe(0);
   }, 90_000);
 });

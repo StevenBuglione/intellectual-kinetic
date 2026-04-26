@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
 import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import {
@@ -97,5 +98,18 @@ describe("canonical document foundation", () => {
     const result = validateCanonicalDocument(gateTwoScholarlyFixture);
 
     expect(result.ok).toBe(true);
+  });
+
+  it("validates Gate 3 layout, asset, comment, and placement metadata", () => {
+    const result = validateCanonicalDocument(gateThreeLayoutFixture);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(result.errors.join("\n"));
+    }
+    expect(JSON.stringify(result.document)).toContain("asset-plate-a");
+    expect(JSON.stringify(result.document)).toContain("comment-reading");
+    expect(JSON.stringify(result.document)).toContain("lower-alpha");
+    expect(JSON.stringify(result.document)).toContain("page_footer");
   });
 });

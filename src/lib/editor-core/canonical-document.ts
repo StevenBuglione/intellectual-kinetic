@@ -21,11 +21,23 @@ const inlineSchema: InlineSchema = z.lazy(() => z.discriminatedUnion("type", [
   z.object({ type: z.literal("math_inline"), tex: z.string().min(1) }),
   z.object({ type: z.literal("citation"), key: z.string().min(1) }),
   z.object({ type: z.literal("reference"), target: z.string().min(1) }),
-  z.object({ type: z.literal("footnote"), children: z.array(inlineSchema) }),
+  z.object({
+    type: z.literal("footnote"),
+    placement: z.enum(["inline", "page_footer"]).optional(),
+    children: z.array(inlineSchema),
+  }),
   z.object({
     type: z.literal("language_span"),
     language: z.string().min(1),
     children: z.array(inlineSchema),
+  }),
+  z.object({
+    type: z.literal("comment"),
+    id: z.string().min(1),
+    author: z.string().min(1),
+    status: z.enum(["open", "resolved"]),
+    children: z.array(inlineSchema),
+    comment: z.string().min(1),
   }),
 ]));
 
@@ -65,6 +77,10 @@ const blockSchema = z.discriminatedUnion("type", [
     id: z.string().min(1),
     type: z.literal("list"),
     ordered: z.boolean(),
+    layout: z.object({
+      indentLevel: z.number().int().min(0).max(8).optional(),
+      markerStyle: z.enum(["bullet", "dash", "decimal", "lower-alpha"]).optional(),
+    }).optional(),
     items: z.array(z.object({
       id: z.string().min(1),
       children: z.array(inlineSchema),
@@ -81,12 +97,17 @@ const blockSchema = z.discriminatedUnion("type", [
         id: z.string().min(1),
         children: z.array(inlineSchema),
         header: z.boolean().optional(),
+        align: z.enum(["left", "center", "right"]).optional(),
         colspan: z.number().int().min(1).optional(),
         rowspan: z.number().int().min(1).optional(),
       })).min(1),
     })).min(1),
     caption: z.array(inlineSchema).optional(),
     label: z.string().min(1).optional(),
+    layout: z.object({
+      columnWidths: z.array(z.number().min(0.05).max(1)).optional(),
+      repeatHeader: z.boolean().optional(),
+    }).optional(),
     provenance: provenanceSchema.optional(),
     reviewState: reviewStateSchema,
   }),
@@ -96,6 +117,13 @@ const blockSchema = z.discriminatedUnion("type", [
     altText: z.string(),
     caption: z.array(inlineSchema).optional(),
     label: z.string().min(1).optional(),
+    asset: z.object({
+      assetId: z.string().min(1),
+      kind: z.literal("placeholder"),
+      mimeType: z.enum(["image/png", "image/jpeg", "image/svg+xml"]),
+      widthRatio: z.number().min(0.1).max(1),
+      heightPx: z.number().int().min(24).max(720),
+    }).optional(),
     provenance: provenanceSchema.optional(),
     reviewState: reviewStateSchema,
   }),

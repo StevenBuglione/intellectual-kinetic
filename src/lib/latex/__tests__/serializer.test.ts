@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
+import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
 import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { serializeCanonicalDocumentToLatex } from "../serializer";
@@ -67,5 +68,18 @@ describe("deterministic LaTeX serializer", () => {
     expect(result.source).toContain("The edited apparatus cites \\texttt{@doe2026} for traceability.");
     expect(result.source).toContain("\\textbf{References}");
     expect(result.source).toContain("doe2026 Doe, Jane. Restoration Methods. 2026.");
+  });
+
+  it("serializes Gate 3 layout, comments, placed notes, and asset figures", () => {
+    const result = serializeCanonicalDocumentToLatex(gateThreeLayoutFixture);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.source).toContain("\\IkComment{Editor}{open}{variant alpha}{Confirm against source page margin.}");
+    expect(result.source).toContain("\\IkPlacedFootnote{Placed footnote evidence.}");
+    expect(result.source).toContain("\\begin{enumerate}[label=\\alph*.]");
+    expect(result.source).toContain("\\setlength{\\leftskip}{0.50in}");
+    expect(result.source).toContain("\\IkTableCell{1.50in}{\\raggedright \\textbf{Region}}");
+    expect(result.source).toContain("\\IkTableCell{2.70in}{\\centering \\textbf{Observation}}");
+    expect(result.source).toContain("\\IkAssetFigurePlaceholder{0.62\\linewidth}{1.38in}{Plate A restored source crop}{Asset-backed plate placeholder\\label{fig:plate-a}}");
   });
 });

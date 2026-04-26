@@ -35,7 +35,7 @@ function canonicalBlockToEditorText(block: CanonicalBlock): string {
 
   if (block.type === "list") {
     return block.items.map((item, index) => {
-      const marker = block.ordered ? `${index + 1}. ` : "• ";
+      const marker = listMarker(block, index);
       return `${marker}${item.children.map(canonicalInlineToEditorText).join("")}`;
     }).join(" ");
   }
@@ -66,6 +66,18 @@ function canonicalBlockToEditorText(block: CanonicalBlock): string {
   return block.children.map(canonicalInlineToEditorText).join("");
 }
 
+function listMarker(block: Extract<CanonicalBlock, { type: "list" }>, index: number): string {
+  if (!block.ordered) {
+    return block.layout?.markerStyle === "dash" ? "- " : "• ";
+  }
+
+  if (block.layout?.markerStyle === "lower-alpha") {
+    return `${String.fromCharCode(97 + index)}. `;
+  }
+
+  return `${index + 1}. `;
+}
+
 function canonicalInlineToEditorText(child: CanonicalInline): string {
   if (child.type === "text") {
     return child.text;
@@ -85,6 +97,10 @@ function canonicalInlineToEditorText(child: CanonicalInline): string {
 
   if (child.type === "language_span") {
     return child.children.map(canonicalInlineToEditorText).join("");
+  }
+
+  if (child.type === "comment") {
+    return `[comment: ${child.children.map(canonicalInlineToEditorText).join("")} - ${child.comment}]`;
   }
 
   return `[[${child.target}]]`;

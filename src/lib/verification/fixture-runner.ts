@@ -1,4 +1,5 @@
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
+import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
 import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import { validateCanonicalDocument } from "@/lib/editor-core/canonical-document";
@@ -16,7 +17,12 @@ export type FixtureVerificationReport = {
   }>;
 };
 
-const fixtures = [restorationFoundationFixture, gateOneStructureFixture, gateTwoScholarlyFixture];
+const fixtures = [
+  restorationFoundationFixture,
+  gateOneStructureFixture,
+  gateTwoScholarlyFixture,
+  gateThreeLayoutFixture,
+];
 
 export async function runParityFixtureVerification(): Promise<FixtureVerificationReport> {
   const fixtureReports = await Promise.all(fixtures.map(async (fixture) => {

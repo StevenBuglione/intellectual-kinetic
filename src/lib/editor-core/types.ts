@@ -42,6 +42,7 @@ export type ReferenceInline = {
 
 export type FootnoteInline = {
   type: "footnote";
+  placement?: "inline" | "page_footer";
   children: CanonicalInline[];
 };
 
@@ -51,13 +52,23 @@ export type LanguageSpanInline = {
   children: CanonicalInline[];
 };
 
+export type CommentInline = {
+  type: "comment";
+  id: string;
+  author: string;
+  status: "open" | "resolved";
+  children: CanonicalInline[];
+  comment: string;
+};
+
 export type CanonicalInline =
   | TextInline
   | MathInline
   | CitationInline
   | ReferenceInline
   | FootnoteInline
-  | LanguageSpanInline;
+  | LanguageSpanInline
+  | CommentInline;
 
 export type ParagraphBlock = {
   id: string;
@@ -105,6 +116,10 @@ export type ListBlock = {
   id: string;
   type: "list";
   ordered: boolean;
+  layout?: {
+    indentLevel?: number;
+    markerStyle?: "bullet" | "dash" | "decimal" | "lower-alpha";
+  };
   items: ListItem[];
   provenance?: Provenance;
   reviewState: ReviewState;
@@ -114,6 +129,7 @@ export type TableCell = {
   id: string;
   children: CanonicalInline[];
   header?: boolean;
+  align?: "left" | "center" | "right";
   colspan?: number;
   rowspan?: number;
 };
@@ -129,6 +145,10 @@ export type TableBlock = {
   rows: TableRow[];
   caption?: CanonicalInline[];
   label?: string;
+  layout?: {
+    columnWidths?: number[];
+    repeatHeader?: boolean;
+  };
   provenance?: Provenance;
   reviewState: ReviewState;
 };
@@ -139,6 +159,13 @@ export type FigureBlock = {
   altText: string;
   caption?: CanonicalInline[];
   label?: string;
+  asset?: {
+    assetId: string;
+    kind: "placeholder";
+    mimeType: "image/png" | "image/jpeg" | "image/svg+xml";
+    widthRatio: number;
+    heightPx: number;
+  };
   provenance?: Provenance;
   reviewState: ReviewState;
 };

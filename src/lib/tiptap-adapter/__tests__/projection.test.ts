@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gateOneStructureFixture } from "@/fixtures/parity/gate-one-structure";
+import { gateThreeLayoutFixture } from "@/fixtures/parity/gate-three-layout";
 import { gateTwoScholarlyFixture } from "@/fixtures/parity/gate-two-scholarly";
 import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foundation";
 import {
@@ -67,5 +68,27 @@ describe("Tiptap projection boundary", () => {
     expect(patch.blocks.map((block) => block.type)).toEqual(gateTwoScholarlyFixture.blocks.map((block) => block.type));
     expect(JSON.stringify(projected)).toContain("(note: marginal restoration note)");
     expect(JSON.stringify(projected)).toContain("doe2026");
+  });
+
+  it("round trips Gate 3 layout metadata through the adapter boundary", () => {
+    const projected = canonicalToTiptapDocument(gateThreeLayoutFixture);
+    const patch = tiptapDocumentToCanonicalPatch(projected);
+
+    expect(JSON.stringify(projected)).toContain("comment-reading");
+    expect(JSON.stringify(projected)).toContain("asset-plate-a");
+    expect(JSON.stringify(projected)).toContain("lower-alpha");
+    expect(JSON.stringify(projected)).toContain("page_footer");
+    expect(patch.blocks).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: "gate-three-list",
+        type: "list",
+        layout: expect.objectContaining({ markerStyle: "lower-alpha", indentLevel: 2 }),
+      }),
+      expect.objectContaining({
+        id: "gate-three-figure",
+        type: "figure",
+        asset: expect.objectContaining({ assetId: "asset-plate-a" }),
+      }),
+    ]));
   });
 });

@@ -197,18 +197,31 @@ function renderBlock(block: CanonicalBlock): string {
 
   if (block.type === "list") {
     const tag = block.ordered ? "ol" : "ul";
-    return `<${tag}>${block.items.map((item) => `<li>${renderInline(item.children)}</li>`).join("")}</${tag}>`;
+    const style = [
+      block.layout?.indentLevel ? `margin-left:${spacing.listLeftMarginPx + block.layout.indentLevel * 24}px` : "",
+      block.layout?.markerStyle === "lower-alpha" ? "list-style-type:lower-alpha" : "",
+      block.layout?.markerStyle === "dash" ? "list-style-type:'- '" : "",
+    ].filter(Boolean).join(";");
+    return `<${tag}${style ? ` style="${style}"` : ""}>${block.items.map((item) => `<li>${renderInline(item.children)}</li>`).join("")}</${tag}>`;
   }
 
   if (block.type === "table") {
     return `<figure class="ik-doc-table-figure">${block.caption ? `<figcaption>${renderInline(block.caption)}</figcaption>` : ""}<table><tbody>${block.rows.map((row) => `<tr>${row.cells.map((cell) => {
       const tag = cell.header ? "th" : "td";
-      return `<${tag}>${renderInline(cell.children)}</${tag}>`;
+      const width = block.layout?.columnWidths?.[row.cells.indexOf(cell)];
+      const style = [
+        cell.align ? `text-align:${cell.align}` : "",
+        width ? `width:${width * 100}%` : "",
+      ].filter(Boolean).join(";");
+      return `<${tag}${style ? ` style="${style}"` : ""}>${renderInline(cell.children)}</${tag}>`;
     }).join("")}</tr>`).join("")}</tbody></table></figure>`;
   }
 
   if (block.type === "figure") {
-    return `<figure class="ik-doc-figure-placeholder"><div>${escapeHtml(block.altText)}</div>${block.caption ? `<figcaption>${renderInline(block.caption)}</figcaption>` : ""}</figure>`;
+    const assetStyle = block.asset
+      ? ` style="width:${block.asset.widthRatio * 100}%;min-height:${block.asset.heightPx}px"`
+      : "";
+    return `<figure class="ik-doc-figure-placeholder"><div${assetStyle}>${escapeHtml(block.altText)}</div>${block.caption ? `<figcaption>${renderInline(block.caption)}</figcaption>` : ""}</figure>`;
   }
 
   if (block.type === "bibliography") {
@@ -237,10 +250,18 @@ function renderInline(children: CanonicalInline[]): string {
     }
 
     if (child.type === "footnote") {
+      if (child.placement === "page_footer") {
+        return `<code class="ik-code-inline ik-footnote-placement">(note: ${renderInline(child.children)})</code>`;
+      }
+
       return `<code class="ik-code-inline">(note: ${renderInline(child.children)})</code>`;
     }
 
-    return `<span lang="${escapeHtmlAttribute(child.language)}">${renderInline(child.children)}</span>`;
+    if (child.type === "language_span") {
+      return `<span lang="${escapeHtmlAttribute(child.language)}">${renderInline(child.children)}</span>`;
+    }
+
+    return `<code class="ik-code-inline ik-comment-inline">[comment: ${renderInline(child.children)} - ${escapeHtml(child.comment)}]</code>`;
   }).join("");
 }
 
