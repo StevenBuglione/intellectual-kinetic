@@ -488,8 +488,8 @@ button {
 }
 
 .ik-tex-page-live-layer .ik-doc-editor-page ::selection {
-  color: rgba(32, 33, 36, 0.78);
-  -webkit-text-fill-color: rgba(32, 33, 36, 0.78);
+  color: transparent;
+  -webkit-text-fill-color: transparent;
   background: rgba(26, 115, 232, 0.2);
 }
 
@@ -607,6 +607,57 @@ button {
   display: grid;
   gap: 12px;
   margin-top: 14px;
+}
+
+.ik-find-dialog {
+  position: fixed;
+  top: 116px;
+  right: 34px;
+  z-index: 50;
+  display: grid;
+  gap: 10px;
+  width: 328px;
+  padding: 12px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  color: #202124;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(60, 64, 67, 0.24);
+}
+
+.ik-find-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #202124;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ik-find-dialog label {
+  display: grid;
+  gap: 5px;
+  color: #3c4043;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ik-find-dialog input {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #202124;
+  background: #ffffff;
+  font: inherit;
+  font-size: 13px;
+}
+
+.ik-find-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .ik-workflow-panel label {

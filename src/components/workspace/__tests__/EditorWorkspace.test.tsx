@@ -109,13 +109,16 @@ describe("EditorWorkspace", () => {
     render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Find and replace" }));
-    await userEvent.type(screen.getByRole("searchbox", { name: "Find text" }), "motion");
-    await userEvent.type(screen.getByRole("textbox", { name: "Replace with" }), "movement");
-    await userEvent.click(screen.getByRole("button", { name: "Replace all" }));
+    const findDialog = screen.getByRole("dialog", { name: "Find and replace" });
+    await userEvent.type(within(findDialog).getByRole("searchbox", { name: "Find text" }), "Let v");
+    await userEvent.type(within(findDialog).getByRole("textbox", { name: "Replace with" }), "go");
+    await userEvent.click(within(findDialog).getByRole("button", { name: "Replace all" }));
 
-    expect(await screen.findByText("2 replacements")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "A Treatise on movement" })).toBeInTheDocument();
-    expect(screen.getByText("Uniform movement preserves proportional distance.")).toBeInTheDocument();
+    expect(await within(findDialog).findByText("1 replacements")).toBeInTheDocument();
+    expect(screen.getByLabelText("Google Docs-style document page")).toHaveTextContent(
+      "go denote velocity and cite @newton1687.",
+    );
+    expect(screen.getAllByText("s = vt")).toHaveLength(1);
   });
 
   it("shows document statistics and imports paste-special content into the canonical editor", async () => {

@@ -11,10 +11,11 @@
     "verify:fixtures": "vitest run src/lib/verification/__tests__/fixture-runner.test.ts",
     "verify:visual": "vitest run src/lib/verification/__tests__/visual-parity.test.ts",
     "verify:editor-focus": "node scripts/verify-editor-focus-parity.mjs",
+    "verify:editor-workflows": "node scripts/verify-editor-workflows.mjs",
     "verify:lyx-coverage": "vitest run src/lib/verification/__tests__/lyx-coverage.test.ts",
     "verify:lyx-oracle": "node scripts/run-lyx-oracle.mjs",
     "verify:lyx-oracle:local": "vitest run src/lib/verification/__tests__/lyx-oracle.real.test.ts",
-    "verify:gates": "npm run verify:fixtures && npm run verify:visual && npm run verify:editor-focus && npm run verify:lyx-coverage && npm run verify:lyx-oracle",
+    "verify:gates": "npm run verify:fixtures && npm run verify:visual && npm run verify:editor-focus && npm run verify:editor-workflows && npm run verify:lyx-coverage && npm run verify:lyx-oracle",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

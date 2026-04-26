@@ -39,22 +39,22 @@ export function replaceAllInCanonicalDocument(
     return { document, replacementCount: 0 };
   }
 
-  let replacementCount = 0;
   const matcher = new RegExp(escapeRegExp(options.find), options.matchCase ? "g" : "gi");
+  const counter = { value: 0 };
   const replaceText = (value: string) => value.replace(matcher, () => {
-    replacementCount += 1;
+    counter.value += 1;
     return options.replaceWith;
   });
 
-  const blocks = document.blocks.map((block) => replaceInBlock(block, replaceText));
+  const blocks = document.blocks.map((block) => replaceInBlock(block, replaceText, matcher, options.replaceWith, counter));
 
   return {
     document: {
       ...document,
       blocks,
-      updatedAt: replacementCount > 0 ? new Date().toISOString() : document.updatedAt,
+      updatedAt: counter.value > 0 ? new Date().toISOString() : document.updatedAt,
     },
-    replacementCount,
+    replacementCount: counter.value,
   };
 }
 
@@ -94,11 +94,17 @@ export function pasteSpecialToCanonicalBlocks(input: PasteSpecialInput): Canonic
   return plainTextToParagraphs(input.source);
 }
 
-function replaceInBlock(block: CanonicalBlock, replaceText: (value: string) => string): CanonicalBlock {
+function replaceInBlock(
+  block: CanonicalBlock,
+  replaceText: (value: string) => string,
+  matcher: RegExp,
+  replaceWith: string,
+  counter: { value: number },
+): CanonicalBlock {
   if ("children" in block) {
     return {
       ...block,
-      children: replaceInInlines(block.children, replaceText),
+      children: replaceInInlines(block.children, replaceText, matcher, replaceWith, counter),
     };
   }
 
@@ -112,12 +118,12 @@ function replaceInBlock(block: CanonicalBlock, replaceText: (value: string) => s
   if (block.type === "table") {
     return {
       ...block,
-      caption: block.caption ? replaceInInlines(block.caption, replaceText) : undefined,
+      caption: block.caption ? replaceInInlines(block.caption, replaceText, matcher, replaceWith, counter) : undefined,
       rows: block.rows.map((row) => ({
         ...row,
         cells: row.cells.map((cell) => ({
           ...cell,
-          children: replaceInInlines(cell.children, replaceText),
+          children: replaceInInlines(cell.children, replaceText, matcher, replaceWith, counter),
         })),
       })),
     };
@@ -127,7 +133,7 @@ function replaceInBlock(block: CanonicalBlock, replaceText: (value: string) => s
     return {
       ...block,
       altText: replaceText(block.altText),
-      caption: block.caption ? replaceInInlines(block.caption, replaceText) : undefined,
+      caption: block.caption ? replaceInInlines(block.caption, replaceText, matcher, replaceWith, counter) : undefined,
     };
   }
 
@@ -145,7 +151,9 @@ function replaceInBlock(block: CanonicalBlock, replaceText: (value: string) => s
     return {
       ...block,
       title: replaceText(block.title),
-      resolvedBlocks: block.resolvedBlocks?.map((resolvedBlock) => replaceInBlock(resolvedBlock, replaceText)),
+      resolvedBlocks: block.resolvedBlocks?.map((resolvedBlock) => (
+        replaceInBlock(resolvedBlock, replaceText, matcher, replaceWith, counter)
+      )),
     };
   }
 
@@ -153,7 +161,7 @@ function replaceInBlock(block: CanonicalBlock, replaceText: (value: string) => s
     return {
       ...block,
       branchName: replaceText(block.branchName),
-      blocks: block.blocks.map((branchBlock) => replaceInBlock(branchBlock, replaceText)),
+      blocks: block.blocks.map((branchBlock) => replaceInBlock(branchBlock, replaceText, matcher, replaceWith, counter)),
     };
   }
 
@@ -172,7 +180,34 @@ function replaceInBlock(block: CanonicalBlock, replaceText: (value: string) => s
   return block;
 }
 
-function replaceInInlines(children: CanonicalInline[], replaceText: (value: string) => string): CanonicalInline[] {
+function replaceInInlines(
+  children: CanonicalInline[],
+  replaceText: (value: string) => string,
+  matcher: RegExp,
+  replaceWith: string,
+  counter: { value: number },
+): CanonicalInline[] {
+  const joined = children.map(inlineSearchText).join("");
+  const matches = [...joined.matchAll(resetRegExp(matcher))].filter((match) => match[0].length > 0);
+
+  if (matches.length > 0) {
+    const ranges = inlineRanges(children);
+    const nextChildren: CanonicalInline[] = [];
+    let cursor = 0;
+
+    for (const match of matches) {
+      const start = match.index ?? 0;
+      const end = start + match[0].length;
+      nextChildren.push(...sliceInlineRanges(ranges, cursor, start));
+      nextChildren.push({ type: "text", text: replaceWith });
+      counter.value += 1;
+      cursor = end;
+    }
+
+    nextChildren.push(...sliceInlineRanges(ranges, cursor, joined.length));
+    return mergeAdjacentTextInlines(nextChildren);
+  }
+
   return children.map((child) => {
     if (child.type === "text") {
       return { ...child, text: replaceText(child.text) };
@@ -183,7 +218,7 @@ function replaceInInlines(children: CanonicalInline[], replaceText: (value: stri
     }
 
     if (child.type === "footnote" || child.type === "language_span" || child.type === "comment") {
-      return { ...child, children: replaceInInlines(child.children, replaceText) };
+      return { ...child, children: replaceInInlines(child.children, replaceText, matcher, replaceWith, counter) };
     }
 
     if (child.type === "glossary_entry") {
@@ -212,6 +247,107 @@ function replaceInInlines(children: CanonicalInline[], replaceText: (value: stri
 
     return child;
   });
+}
+
+type InlineRange = {
+  child: CanonicalInline;
+  start: number;
+  end: number;
+  text: string;
+};
+
+function inlineRanges(children: CanonicalInline[]): InlineRange[] {
+  let cursor = 0;
+  return children.map((child) => {
+    const text = inlineSearchText(child);
+    const range = {
+      child,
+      start: cursor,
+      end: cursor + text.length,
+      text,
+    };
+    cursor = range.end;
+    return range;
+  });
+}
+
+function sliceInlineRanges(ranges: InlineRange[], start: number, end: number): CanonicalInline[] {
+  if (start >= end) {
+    return [];
+  }
+
+  return ranges.flatMap((range) => {
+    const sliceStart = Math.max(start, range.start);
+    const sliceEnd = Math.min(end, range.end);
+    if (sliceStart >= sliceEnd) {
+      return [];
+    }
+
+    const relativeStart = sliceStart - range.start;
+    const relativeEnd = sliceEnd - range.start;
+    if (relativeStart === 0 && relativeEnd === range.text.length) {
+      return [range.child];
+    }
+
+    return [{ type: "text", text: range.text.slice(relativeStart, relativeEnd) } satisfies CanonicalInline];
+  });
+}
+
+function inlineSearchText(child: CanonicalInline): string {
+  if (child.type === "text") {
+    return child.text;
+  }
+
+  if (child.type === "math_inline") {
+    return child.tex;
+  }
+
+  if (child.type === "citation") {
+    return `@${child.key}`;
+  }
+
+  if (child.type === "reference") {
+    return child.target;
+  }
+
+  if (child.type === "label" || child.type === "index_entry") {
+    return "";
+  }
+
+  if (child.type === "glossary_entry") {
+    return child.term;
+  }
+
+  if (child.type === "nomenclature_entry") {
+    return child.symbol;
+  }
+
+  if (child.type === "footnote" || child.type === "language_span" || child.type === "comment") {
+    return child.children.map(inlineSearchText).join("");
+  }
+
+  return "";
+}
+
+function mergeAdjacentTextInlines(children: CanonicalInline[]): CanonicalInline[] {
+  return children.reduce<CanonicalInline[]>((merged, child) => {
+    const previous = merged.at(-1);
+    if (previous?.type === "text" && child.type === "text") {
+      previous.text += child.text;
+      return merged;
+    }
+
+    if (child.type === "text" && child.text.length === 0) {
+      return merged;
+    }
+
+    merged.push(child);
+    return merged;
+  }, []);
+}
+
+function resetRegExp(regexp: RegExp): RegExp {
+  return new RegExp(regexp.source, regexp.flags);
 }
 
 function parseLatexBlocks(source: string): CanonicalBlock[] {

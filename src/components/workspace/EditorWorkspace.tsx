@@ -179,10 +179,10 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const applyDocumentUpdate = useCallback((nextDocument: CanonicalDocument) => {
     documentRef.current = nextDocument;
     setDocument(nextDocument);
+    editor?.commands.setContent(canonicalToTiptapDocument(nextDocument), { emitUpdate: false });
     setCompiledPreview(null);
     setCompileState("idle");
-    setEditorMountKey((key) => key + 1);
-  }, []);
+  }, [editor]);
 
   function replaceAllMatches() {
     const result = replaceAllInCanonicalDocument(documentRef.current, {
@@ -488,43 +488,6 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
               ))}
             </aside>
           ) : null}
-          {workflowPanel === "find" ? (
-            <aside className="ik-doc-side-panel ik-workflow-panel" aria-label="Find and replace">
-              <div className="ik-panel-title">
-                <Replace size={18} />
-                Find and replace
-              </div>
-              <label>
-                <span>Find</span>
-                <input
-                  type="search"
-                  aria-label="Find text"
-                  value={findText}
-                  onChange={(event) => {
-                    setFindText(event.target.value);
-                    setReplacementCount(null);
-                  }}
-                />
-              </label>
-              <label>
-                <span>Replace</span>
-                <input
-                  type="text"
-                  aria-label="Replace with"
-                  value={replaceText}
-                  onChange={(event) => setReplaceText(event.target.value)}
-                />
-              </label>
-              <button className="ik-doc-action-button" type="button" onClick={replaceAllMatches}>
-                Replace all
-              </button>
-              {replacementCount !== null ? (
-                <p className="ik-workflow-status" aria-live="polite">
-                  {replacementCount} replacements
-                </p>
-              ) : null}
-            </aside>
-          ) : null}
           {workflowPanel === "statistics" ? (
             <aside className="ik-doc-side-panel ik-workflow-panel" aria-label="Document statistics">
               <div className="ik-panel-title">
@@ -573,6 +536,49 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             </aside>
           ) : null}
         </div>
+
+        {workflowPanel === "find" ? (
+          <section className="ik-find-dialog" role="dialog" aria-label="Find and replace">
+            <div className="ik-find-dialog-title">
+              <Replace size={16} />
+              Find and replace
+            </div>
+            <label>
+              <span>Find</span>
+              <input
+                type="search"
+                aria-label="Find text"
+                value={findText}
+                onChange={(event) => {
+                  setFindText(event.target.value);
+                  setReplacementCount(null);
+                }}
+              />
+            </label>
+            <label>
+              <span>Replace</span>
+              <input
+                type="text"
+                aria-label="Replace with"
+                value={replaceText}
+                onChange={(event) => setReplaceText(event.target.value)}
+              />
+            </label>
+            <div className="ik-find-dialog-actions">
+              <button className="ik-doc-panel-button" type="button" onClick={() => setWorkflowPanel(null)}>
+                Close
+              </button>
+              <button className="ik-doc-action-button" type="button" onClick={replaceAllMatches}>
+                Replace all
+              </button>
+            </div>
+            {replacementCount !== null ? (
+              <p className="ik-workflow-status" aria-live="polite">
+                {replacementCount} replacements
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className="ik-doc-canvas" aria-label="Document editor">
           <div className="ik-doc-vertical-ruler" aria-label="Vertical ruler">

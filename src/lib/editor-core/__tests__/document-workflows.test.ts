@@ -26,6 +26,26 @@ describe("document workflow commands", () => {
     expect(JSON.stringify(result.document)).not.toContain("A Treatise on Motion");
   });
 
+  it("replaces matches that span adjacent inline semantic nodes exactly once", () => {
+    const result = replaceAllInCanonicalDocument(restorationFoundationFixture, {
+      find: "Let v",
+      replaceWith: "go",
+      matchCase: true,
+    });
+
+    expect(result.replacementCount).toBe(1);
+    expect(result.document.blocks[1]).toMatchObject({
+      id: "block-intro",
+      type: "paragraph",
+      children: [
+        { type: "text", text: "go denote velocity and cite " },
+        { type: "citation", key: "newton1687" },
+        { type: "text", text: "." },
+      ],
+    });
+    expect(JSON.stringify(result.document).match(/s = vt/g)).toHaveLength(1);
+  });
+
   it("calculates document statistics from the same canonical text used for PDF parity", () => {
     const stats = calculateDocumentStatistics(restorationFoundationFixture);
 
