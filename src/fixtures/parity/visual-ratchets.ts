@@ -10,9 +10,9 @@ export type VisualParityRatchet = {
 
 export const visualParityRatchets = {
   "fixture-restoration-foundation": createRatchet("fixture-restoration-foundation", 11_600, 0.068),
-  "fixture-gate-one-structure": createRatchet("fixture-gate-one-structure", 107_000, 0.112),
-  "fixture-gate-two-scholarly": createRatchet("fixture-gate-two-scholarly", 21_700, 0.092),
-  "fixture-gate-three-layout": createRatchet("fixture-gate-three-layout", 105_000, 0.125),
+  "fixture-gate-one-structure": createRatchet("fixture-gate-one-structure", 0, 0),
+  "fixture-gate-two-scholarly": createRatchet("fixture-gate-two-scholarly", 0, 0),
+  "fixture-gate-three-layout": createRatchet("fixture-gate-three-layout", 0, 0),
   "fixture-gate-four-lyx-core": createRatchet("fixture-gate-four-lyx-core", 0, 0),
   "fixture-gate-five-lyx-breadth": createRatchet("fixture-gate-five-lyx-breadth", 0, 0),
 } satisfies Record<string, VisualParityRatchet>;

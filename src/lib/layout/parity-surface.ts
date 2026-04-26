@@ -1,4 +1,4 @@
-import type { CanonicalBlock, CanonicalDocument } from "@/lib/editor-core/types";
+import type { CanonicalBlock, CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
 
 export type EditorParitySurface = "browser-editor" | "tex-derived";
 
@@ -21,15 +21,30 @@ function blockRequiresTexDerivedSurface(block: CanonicalBlock): boolean {
     || block.type === "branch"
     || block.type === "semantic_inset"
     || block.type === "include"
+    || block.type === "list"
+    || block.type === "table"
+    || block.type === "figure"
+    || block.type === "page_break"
+    || block.type === "abstract"
+    || block.type === "quote"
+    || block.type === "bibliography"
   ) {
     return true;
   }
 
-  if (block.type === "table" && (block.layout?.booktabs || block.layout?.tableKind === "longtable")) {
+  if ("children" in block && block.children.some(inlineRequiresTexDerivedSurface)) {
     return true;
   }
 
-  if (block.type === "figure" && block.asset?.kind === "embedded") {
+  return false;
+}
+
+function inlineRequiresTexDerivedSurface(inline: CanonicalInline): boolean {
+  if (
+    inline.type === "comment"
+    || inline.type === "footnote"
+    || inline.type === "language_span"
+  ) {
     return true;
   }
 

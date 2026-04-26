@@ -50,8 +50,12 @@ describe("visual editor to PDF parity verification", () => {
     }
 
     const structureFixture = report.fixtures.find((fixture) => fixture.id === "fixture-gate-one-structure");
+    expect(structureFixture?.checks).toContain("tex-derived-editor-render");
     expect(structureFixture?.checks).toContain("editor-pdf-page-sequence");
     expect(structureFixture?.metrics.pageCount).toBe(2);
+    expect(structureFixture?.metrics.pixelPerfect).toBe(true);
+    expect(structureFixture?.metrics.differentPixels).toBe(0);
+    expect(structureFixture?.metrics.rootMeanSquareDifference).toBe(0);
     expect(structureFixture?.metrics.pages).toEqual([
       expect.objectContaining({
         pageNumber: 1,
@@ -69,9 +73,21 @@ describe("visual editor to PDF parity verification", () => {
       }),
     ]);
 
+    const scholarlyFixture = report.fixtures.find((fixture) => fixture.id === "fixture-gate-two-scholarly");
+    expect(scholarlyFixture?.checks).toContain("tex-derived-editor-render");
+    expect(scholarlyFixture?.checks).toContain("editor-pdf-page-sequence");
+    expect(scholarlyFixture?.metrics.pageCount).toBe(1);
+    expect(scholarlyFixture?.metrics.pixelPerfect).toBe(true);
+    expect(scholarlyFixture?.metrics.differentPixels).toBe(0);
+    expect(scholarlyFixture?.metrics.rootMeanSquareDifference).toBe(0);
+
     const layoutFixture = report.fixtures.find((fixture) => fixture.id === "fixture-gate-three-layout");
+    expect(layoutFixture?.checks).toContain("tex-derived-editor-render");
     expect(layoutFixture?.checks).toContain("editor-pdf-page-sequence");
     expect(layoutFixture?.metrics.pageCount).toBe(2);
+    expect(layoutFixture?.metrics.pixelPerfect).toBe(true);
+    expect(layoutFixture?.metrics.differentPixels).toBe(0);
+    expect(layoutFixture?.metrics.rootMeanSquareDifference).toBe(0);
     expect(layoutFixture?.thresholds.targetDifferentPixels).toBe(0);
 
     const lyxFixture = report.fixtures.find((fixture) => fixture.id === "fixture-gate-four-lyx-core");
