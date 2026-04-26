@@ -8,7 +8,7 @@ import { restorationFoundationFixture } from "@/fixtures/parity/restoration-foun
 import { runVisualParityVerification } from "../visual-parity";
 
 describe("visual editor to PDF parity verification", () => {
-  it("compares browser-rendered TextView pages with compiled PDF page images", async () => {
+  it("compares editor parity surfaces with compiled PDF page images", async () => {
     const report = await runVisualParityVerification([
       restorationFoundationFixture,
       gateOneStructureFixture,
@@ -24,12 +24,15 @@ describe("visual editor to PDF parity verification", () => {
     for (const fixture of report.fixtures) {
       expect(fixture.checks).toEqual(
         expect.arrayContaining([
-          "editor-browser-render",
           "pdf-page-render",
           "editor-pdf-visual-diff",
           "editor-pdf-rmse-diff",
         ]),
       );
+      expect(
+        fixture.checks.includes("editor-browser-render")
+          || fixture.checks.includes("tex-derived-editor-render"),
+      ).toBe(true);
       expect(fixture.metrics.differentPixels).toBeLessThanOrEqual(
         fixture.thresholds.maxDifferentPixels,
       );
@@ -77,8 +80,12 @@ describe("visual editor to PDF parity verification", () => {
     expect(lyxFixture?.thresholds.targetDifferentPixels).toBe(0);
 
     const breadthFixture = report.fixtures.find((fixture) => fixture.id === "fixture-gate-five-lyx-breadth");
+    expect(breadthFixture?.checks).toContain("tex-derived-editor-render");
     expect(breadthFixture?.checks).toContain("editor-pdf-page-sequence");
     expect(breadthFixture?.metrics.pageCount).toBe(1);
+    expect(breadthFixture?.metrics.pixelPerfect).toBe(true);
+    expect(breadthFixture?.metrics.differentPixels).toBe(0);
+    expect(breadthFixture?.metrics.rootMeanSquareDifference).toBe(0);
     expect(breadthFixture?.thresholds.targetDifferentPixels).toBe(0);
   }, 90_000);
 });

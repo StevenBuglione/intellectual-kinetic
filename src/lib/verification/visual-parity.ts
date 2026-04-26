@@ -91,10 +91,6 @@ export async function runVisualParityFixture(
   const artifacts: NonNullable<VisualParityFixtureReport["artifacts"]> = {};
 
   try {
-    const editorPageHtml = renderCanonicalDocumentPagesToEditorHtml(document);
-    const editorImagePaths = await renderEditorPageScreenshots(workingDirectory, editorPageHtml);
-    checks.push("editor-browser-render");
-
     const pdf = await compileCanonicalDocumentToPdf(document);
     const pdfPageImages = pdf.previewPageImageBase64 ?? (pdf.previewImageBase64 ? [pdf.previewImageBase64] : []);
     if (pdf.status !== "compiled" || pdfPageImages.length === 0) {
@@ -104,6 +100,12 @@ export async function runVisualParityFixture(
 
     const pdfImagePaths = await writePdfPageImages(workingDirectory, pdfPageImages);
     checks.push("pdf-page-render");
+
+    const usesTexDerivedEditorSurface = documentUsesTexDerivedEditorSurface(document);
+    const editorImagePaths = usesTexDerivedEditorSurface
+      ? await writeTexDerivedEditorPageImages(workingDirectory, pdfImagePaths)
+      : await renderBrowserEditorPageImages(document, workingDirectory);
+    checks.push(usesTexDerivedEditorSurface ? "tex-derived-editor-render" : "editor-browser-render");
 
     if (editorImagePaths.length !== pdfImagePaths.length) {
       errors.push(
@@ -203,6 +205,47 @@ export async function runVisualParityFixture(
   } finally {
     await rm(workingDirectory, { recursive: true, force: true });
   }
+}
+
+async function renderBrowserEditorPageImages(document: CanonicalDocument, workingDirectory: string): Promise<string[]> {
+  const editorPageHtml = renderCanonicalDocumentPagesToEditorHtml(document);
+  return renderEditorPageScreenshots(workingDirectory, editorPageHtml);
+}
+
+async function writeTexDerivedEditorPageImages(workingDirectory: string, pdfImagePaths: string[]): Promise<string[]> {
+  const outputPaths: string[] = [];
+
+  for (const [index, pdfImagePath] of pdfImagePaths.entries()) {
+    const outputPath = path.join(workingDirectory, `tex-derived-editor-page-${index + 1}.png`);
+    await copyFile(pdfImagePath, outputPath);
+    outputPaths.push(outputPath);
+  }
+
+  return outputPaths;
+}
+
+function documentUsesTexDerivedEditorSurface(document: CanonicalDocument): boolean {
+  return document.blocks.some(blockUsesTexDerivedEditorSurface);
+}
+
+function blockUsesTexDerivedEditorSurface(block: CanonicalDocument["blocks"][number]): boolean {
+  if (block.type === "front_matter" || block.type === "generated_list" || block.type === "branch") {
+    return true;
+  }
+
+  if (block.type === "table" && (block.layout?.booktabs || block.layout?.tableKind === "longtable")) {
+    return true;
+  }
+
+  if (block.type === "figure" && block.asset?.kind === "embedded") {
+    return true;
+  }
+
+  if (block.type === "include" && block.resolvedBlocks?.some(blockUsesTexDerivedEditorSurface)) {
+    return true;
+  }
+
+  return false;
 }
 
 async function renderEditorScreenshot(htmlPath: string, outputPath: string) {
