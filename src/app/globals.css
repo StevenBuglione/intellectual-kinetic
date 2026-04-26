@@ -449,6 +449,12 @@ button {
   margin: 0 auto 48px 0;
 }
 
+.ik-tex-page-box {
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+}
+
 .ik-tex-editor-page {
   display: block;
   width: 816px;
@@ -459,13 +465,25 @@ button {
   image-rendering: auto;
 }
 
-.ik-doc-live-editor-shadow {
+.ik-tex-page-live-layer {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
+  inset: 0;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.ik-tex-page-live-layer .ik-doc-editor-page {
+  margin: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(32, 33, 36, 0.012);
+  caret-color: #0b57d0;
+}
+
+.ik-tex-page-live-layer .ik-doc-editor-page ::selection {
+  color: rgba(32, 33, 36, 0.78);
+  background: rgba(26, 115, 232, 0.2);
 }
 
 .ik-doc-editor-page h1,

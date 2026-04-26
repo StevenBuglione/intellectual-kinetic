@@ -70,7 +70,7 @@ describe("EditorWorkspace", () => {
     expect(await screen.findByText("PDF text matches editor")).toBeInTheDocument();
   });
 
-  it("uses compiled TeX page images as the editor surface for advanced LyX fixtures", async () => {
+  it("mounts the live editor inside compiled TeX page boxes for advanced LyX fixtures", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
       status: "compiled",
       artifactName: "fixture-gate-five-lyx-breadth-preview.pdf",
@@ -88,19 +88,20 @@ describe("EditorWorkspace", () => {
 
     render(<EditorWorkspace initialDocument={gateFiveLyxBreadthFixture} />);
 
-    expect(screen.queryByRole("region", { name: "TeX-derived editor surface" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "TeX page box editor surface" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: /pdf preview/i }));
 
-    const texSurface = await screen.findByRole("region", { name: "TeX-derived editor surface" });
-    expect(within(texSurface).getByRole("img", { name: "TeX-derived editor page 1" })).toHaveAttribute(
+    const texSurface = await screen.findByRole("region", { name: "TeX page box editor surface" });
+    expect(within(texSurface).getByRole("img", { name: "TeX page box background 1" })).toHaveAttribute(
       "src",
       "data:image/png;base64,iVBORw0KGgo=",
     );
-    expect(within(texSurface).getByRole("img", { name: "TeX-derived editor page 2" })).toHaveAttribute(
+    expect(within(texSurface).getByRole("img", { name: "TeX page box background 2" })).toHaveAttribute(
       "src",
       "data:image/png;base64,iVBORw0KGgo2",
     );
-    expect(screen.getByLabelText("Google Docs-style document page")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByLabelText("Google Docs-style document page")).not.toHaveAttribute("aria-hidden");
+    expect(within(texSurface).getByLabelText("Google Docs-style document page")).toBeInTheDocument();
   });
 });

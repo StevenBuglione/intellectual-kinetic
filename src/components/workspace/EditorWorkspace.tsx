@@ -40,12 +40,14 @@ import {
   Undo2,
   Video,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { mergeCanonicalPatchBlocks } from "@/lib/editor-core/patch-merge";
 import { compareCanonicalDocumentToPdfText } from "@/lib/editor-core/plaintext";
 import type { CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
 import type { LatexCompileResult } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
 import { resolveEditorParitySurface } from "@/lib/layout/parity-surface";
+import { createTexPageBoxesFromPreview, type TexPageBox } from "@/lib/layout/tex-page-boxes";
 import {
   canonicalToTiptapDocument,
   tiptapDocumentToCanonicalPatch,
@@ -85,15 +87,14 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const [compileState, setCompileState] = useState<"idle" | "compiling" | "compiled" | "failed">("idle");
   const [compiledPreview, setCompiledPreview] = useState<LatexCompileResult | null>(null);
   const editorParitySurface = useMemo(() => resolveEditorParitySurface(document), [document]);
-  const texDerivedEditorPageImages = useMemo(() => {
-    if (editorParitySurface !== "tex-derived" || compiledPreview?.status !== "compiled") {
+  const texEditorPageBoxes = useMemo(() => {
+    if (editorParitySurface !== "tex-derived") {
       return [];
     }
 
-    return compiledPreview.previewPageImageBase64
-      ?? (compiledPreview.previewImageBase64 ? [compiledPreview.previewImageBase64] : []);
+    return createTexPageBoxesFromPreview(compiledPreview);
   }, [compiledPreview, editorParitySurface]);
-  const usingTexDerivedEditorSurface = texDerivedEditorPageImages.length > 0;
+  const usingTexDerivedEditorSurface = texEditorPageBoxes.length > 0;
   const latex = useMemo(() => serializeCanonicalDocumentToLatex(document), [document]);
   const pdfTextVerification = useMemo(
     () => compareCanonicalDocumentToPdfText(document, compiledPreview?.extractedText),
@@ -136,7 +137,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       if (patch.blocks.length > 0) {
         setDocument((current) => ({
           ...current,
-          blocks: patch.blocks,
+          blocks: mergeCanonicalPatchBlocks(current.blocks, patch.blocks),
           updatedAt: new Date().toISOString(),
         }));
         setCompiledPreview(null);
@@ -144,20 +145,6 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
       }
     },
   }, [editorMountKey]);
-
-  useEffect(() => {
-    const editorElement = editor?.view.dom;
-    if (!editorElement) {
-      return;
-    }
-
-    if (usingTexDerivedEditorSurface) {
-      editorElement.setAttribute("aria-hidden", "true");
-      return;
-    }
-
-    editorElement.removeAttribute("aria-hidden");
-  }, [editor, usingTexDerivedEditorSurface]);
 
   async function saveDocument() {
     setSaveState("saving");
@@ -225,6 +212,10 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
 
     return () => window.clearTimeout(compileAfterEdit);
   }, [compilePdfPreview, compileState, compiledPreview, pdfOpen]);
+
+  const liveEditorContent = editor
+    ? <EditorContent editor={editor} />
+    : <CanonicalDocumentFallback document={document} />;
 
   return (
     <main className="ik-doc-shell">
@@ -424,11 +415,11 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             ))}
           </div>
           {usingTexDerivedEditorSurface ? (
-            <TexDerivedEditorSurface pageImages={texDerivedEditorPageImages} />
-          ) : null}
-          <div className={usingTexDerivedEditorSurface ? "ik-doc-live-editor-shadow" : undefined}>
-            {editor ? <EditorContent editor={editor} /> : <CanonicalDocumentFallback document={document} />}
-          </div>
+            <TexPageBoxEditorSurface
+              editorContent={liveEditorContent}
+              pageBoxes={texEditorPageBoxes}
+            />
+          ) : liveEditorContent}
         </section>
 
         {pdfOpen ? (
@@ -489,18 +480,34 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   );
 }
 
-function TexDerivedEditorSurface({ pageImages }: { pageImages: string[] }) {
+function TexPageBoxEditorSurface({
+  editorContent,
+  pageBoxes,
+}: {
+  editorContent: ReactNode;
+  pageBoxes: TexPageBox[];
+}) {
   return (
-    <section className="ik-tex-editor-surface" aria-label="TeX-derived editor surface">
-      {pageImages.map((pageImage, index) => (
-        // The TeX-derived editor page is already a rasterized PDF page produced by pdftoppm.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          alt={`TeX-derived editor page ${index + 1}`}
-          className="ik-tex-editor-page"
-          key={`${pageImage.slice(0, 12)}-${index}`}
-          src={`data:image/png;base64,${pageImage}`}
-        />
+    <section className="ik-tex-editor-surface" aria-label="TeX page box editor surface">
+      {pageBoxes.map((pageBox, index) => (
+        <article
+          className="ik-tex-page-box"
+          key={`${pageBox.backgroundImageBase64.slice(0, 12)}-${pageBox.pageNumber}`}
+          style={{ width: pageBox.widthPx, height: pageBox.heightPx }}
+        >
+          {/* The page background is the rasterized PDF page produced by pdftoppm. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt={`TeX page box background ${pageBox.pageNumber}`}
+            className="ik-tex-editor-page"
+            src={`data:image/png;base64,${pageBox.backgroundImageBase64}`}
+          />
+          {index === 0 ? (
+            <div className="ik-tex-page-live-layer" aria-label="Live Tiptap layer inside TeX page box">
+              {editorContent}
+            </div>
+          ) : null}
+        </article>
       ))}
     </section>
   );
