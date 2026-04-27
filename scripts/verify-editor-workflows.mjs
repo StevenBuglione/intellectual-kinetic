@@ -381,12 +381,73 @@ async function main() {
       throw new Error(`Opening PDF preview should compile exactly once, saw ${previewRequestCount} preview requests.`);
     }
 
-    await page.getByRole("combobox", { name: "Document class" }).selectOption("beamer");
-    const classRecompileStart = Date.now();
-    while (previewRequestCount < 2 && Date.now() - classRecompileStart < 45_000) {
+    await page.getByRole("button", { name: "Show source" }).click();
+    const liveSourcePanel = page.getByRole("complementary", { name: "Generated LaTeX source" });
+    await liveSourcePanel.waitFor({ state: "visible" });
+    await leftWorkspace.getByRole("button", { name: "Open document modules" }).click();
+    const modulesPanel = page.getByRole("complementary", { name: "Document modules" });
+    await modulesPanel.waitFor({ state: "visible" });
+    await modulesPanel.getByRole("checkbox", { name: "Enable Multiple Columns module" }).click();
+    const moduleEnableRecompileStart = Date.now();
+    while (previewRequestCount < 2 && Date.now() - moduleEnableRecompileStart < 45_000) {
       await page.waitForTimeout(250);
     }
     if (previewRequestCount !== 2) {
+      throw new Error(`Enabling a LyX module with PDF preview open should trigger one recompile, saw ${previewRequestCount} preview requests.`);
+    }
+    await liveSourcePanel.getByText("\\usepackage{multicol}").waitFor({ state: "visible" });
+    await liveSourcePanel.getByText("\\begin{multicols}{2}").waitFor({ state: "visible" });
+    const enabledModuleState = await page.evaluate(() => {
+      const pageStack = document.querySelector(".ik-doc-page-stack");
+      const editorPage = document.querySelector(".ik-doc-editor-page");
+      const preview = document.querySelector('img[alt="Compiled PDF preview page"]');
+      return {
+        enabledModules: pageStack?.getAttribute("data-enabled-modules"),
+        columnCount: editorPage ? window.getComputedStyle(editorPage).columnCount : null,
+        previewSrc: preview?.getAttribute("src") ?? null,
+      };
+    });
+    if (
+      enabledModuleState.enabledModules !== "multicol"
+      || enabledModuleState.columnCount !== "2"
+    ) {
+      throw new Error(`Enabling Multiple Columns should update editor/source/preview state, got ${JSON.stringify(enabledModuleState)}.`);
+    }
+    await page.getByRole("region", { name: "TeX page box editor surface" }).waitFor({ state: "visible" });
+    const pdfParityWarningCount = await page.getByLabel("PDF text verification").count();
+    if (pdfParityWarningCount !== 0) {
+      throw new Error("Layout-affecting modules should move the editor onto the TeX-derived surface instead of showing a PDF text mismatch warning.");
+    }
+
+    await page.getByRole("checkbox", { name: "Disable Multiple Columns module" }).click();
+    await page.waitForTimeout(800);
+    const disabledModuleState = await page.evaluate(() => {
+      const pageStack = document.querySelector(".ik-doc-page-stack");
+      const editorPage = document.querySelector(".ik-doc-editor-page");
+      return {
+        enabledModules: pageStack?.getAttribute("data-enabled-modules"),
+        columnCount: editorPage ? window.getComputedStyle(editorPage).columnCount : null,
+      };
+    });
+    if (
+      disabledModuleState.enabledModules !== ""
+      || disabledModuleState.columnCount === "2"
+    ) {
+      throw new Error(`Disabling Multiple Columns should restore the single-column surface, got ${JSON.stringify(disabledModuleState)}.`);
+    }
+    const multicolPackageCount = await liveSourcePanel.getByText("\\usepackage{multicol}").count();
+    if (multicolPackageCount !== 0) {
+      throw new Error("Disabling Multiple Columns should remove its package from generated source.");
+    }
+    await page.getByRole("button", { name: "Show source" }).click();
+    await liveSourcePanel.waitFor({ state: "hidden" });
+
+    await page.getByRole("combobox", { name: "Document class" }).selectOption("beamer");
+    const classRecompileStart = Date.now();
+    while (previewRequestCount < 3 && Date.now() - classRecompileStart < 45_000) {
+      await page.waitForTimeout(250);
+    }
+    if (previewRequestCount !== 3) {
       throw new Error(`Changing the document class with PDF preview open should trigger one recompile, saw ${previewRequestCount} preview requests.`);
     }
     let beamerPreviewState = null;
@@ -424,26 +485,52 @@ async function main() {
     }
 
     await page.getByRole("combobox", { name: "Document class" }).selectOption("report");
-    const reportRecompileStart = Date.now();
-    while (previewRequestCount < 3 && Date.now() - reportRecompileStart < 45_000) {
+    let reportPreviewState = null;
+    const reportPreviewWaitStart = Date.now();
+    while (Date.now() - reportPreviewWaitStart < 45_000) {
+      reportPreviewState = await page.evaluate(() => {
+        const pageStack = document.querySelector(".ik-doc-page-stack");
+        const heading = document.querySelector(".ik-doc-editor-page h1");
+        const preview = document.querySelector('img[alt="Compiled PDF preview page"]');
+        return {
+          documentClass: pageStack?.getAttribute("data-document-class"),
+          documentBehavior: pageStack?.getAttribute("data-document-behavior"),
+          headingAlign: heading ? window.getComputedStyle(heading).textAlign : null,
+          previewSrc: preview?.getAttribute("src") ?? null,
+        };
+      });
+      if (
+        reportPreviewState.documentClass === "report"
+        && reportPreviewState.documentBehavior === "report"
+        && reportPreviewState.headingAlign !== "center"
+        && reportPreviewState.previewSrc !== beamerPreviewState.previewSrc
+      ) {
+        break;
+      }
       await page.waitForTimeout(250);
     }
-    if (previewRequestCount !== 3) {
-      throw new Error(`Switching the document class back to report should trigger one recompile, saw ${previewRequestCount} preview requests.`);
+    if (
+      !reportPreviewState
+      || reportPreviewState.documentClass !== "report"
+      || reportPreviewState.documentBehavior !== "report"
+      || reportPreviewState.headingAlign === "center"
+      || reportPreviewState.previewSrc === beamerPreviewState.previewSrc
+    ) {
+      throw new Error(`Switching the document class back to report should restore report formatting and refresh the preview, got ${JSON.stringify(reportPreviewState)}.`);
     }
-    await page.getByLabel("PDF preview verified").waitFor({ state: "visible" });
 
     await page.getByRole("button", { name: "Paste special", exact: true }).click();
     const previewPastePanel = page.getByRole("complementary", { name: "Paste special" });
     await previewPastePanel.getByRole("combobox", { name: "Paste format" }).selectOption("plain-text");
     await previewPastePanel.getByRole("textbox", { name: "Paste source" }).fill("Loop refresh note.");
+    const previewRequestCountBeforeEdit = previewRequestCount;
     await previewPastePanel.getByRole("button", { name: "Insert paste" }).click();
     await page.getByText("Loop refresh note.").waitFor({ state: "visible" });
     const recompileStart = Date.now();
-    while (previewRequestCount < 4 && Date.now() - recompileStart < 45_000) {
+    while (previewRequestCount < (previewRequestCountBeforeEdit + 1) && Date.now() - recompileStart < 45_000) {
       await page.waitForTimeout(250);
     }
-    if (previewRequestCount !== 4) {
+    if (previewRequestCount !== (previewRequestCountBeforeEdit + 1)) {
       throw new Error(`Editing with PDF preview open should trigger one recompile, saw ${previewRequestCount} preview requests.`);
     }
     await page.getByLabel("PDF preview verified").waitFor({ state: "visible" });
@@ -612,7 +699,7 @@ async function main() {
       throw new Error(`Browser console errors were emitted:\n${consoleErrors.join("\n")}`);
     }
 
-    console.log("Editor workflow browser verification passed: persisted real document tabs, collapsible left workspace, document outline navigation, PDF preview recompilation, tracked-change review workflow, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
+    console.log("Editor workflow browser verification passed: persisted real document tabs, collapsible left workspace, module enable/disable source and preview refresh, document outline navigation, PDF preview recompilation, tracked-change review workflow, Ctrl-F floating find, visible highlights without native selection overlay, cross-inline replace, no math duplication, transparent TeX selection layer.");
   } finally {
     if (browser) {
       await browser.close();

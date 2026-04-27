@@ -1,5 +1,6 @@
 import type { CanonicalBlock, CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
 import { getLyxDocumentClassEntry } from "@/lib/lyx/document-classes";
+import { resolveEnabledSupportedLyxModules } from "@/lib/lyx/modules";
 import { buildLatexGeometryOptions, pageLayoutContract } from "@/lib/layout/page-layout-contract";
 
 const { typography, fonts, table, figure } = pageLayoutContract;
@@ -27,6 +28,20 @@ export function serializeCanonicalDocumentToLatex(
   const beamerDocument = documentClass?.behavior === "beamer";
   const docbookDocument = documentClass?.behavior === "docbook";
   const requiredPackages = collectDocumentClassPackages(documentClass);
+  const enabledModules = resolveEnabledSupportedLyxModules(document.settings.enabledModules);
+  const enabledModuleIds = new Set(enabledModules.map((entry) => entry.id));
+  const customHeadersFootersEnabled = enabledModuleIds.has("customHeadersFooters");
+  const emittedPackages = new Set(requiredPackages);
+  const enabledModulePackageLines = enabledModules.flatMap((entry) => (
+    entry.packages.filter((packageName) => {
+      if (emittedPackages.has(packageName)) {
+        return false;
+      }
+
+      emittedPackages.add(packageName);
+      return true;
+    }).map((packageName) => `\\usepackage{${packageName}}`)
+  ));
 
   if (docbookDocument) {
     diagnostics.push({
@@ -40,8 +55,16 @@ export function serializeCanonicalDocumentToLatex(
     `% Generated deterministically from canonical AST ${document.id}`,
     `\\documentclass{${latexDocumentClass}}`,
     ...requiredPackages.map((packageName) => `\\usepackage{${packageName}}`),
+    ...enabledModulePackageLines,
     ...document.settings.modules
-      .filter((moduleName) => !requiredPackages.includes(moduleName))
+      .filter((moduleName) => {
+        if (emittedPackages.has(moduleName)) {
+          return false;
+        }
+
+        emittedPackages.add(moduleName);
+        return true;
+      })
       .map((moduleName) => `\\usepackage{${moduleName}}`),
     ...(beamerDocument ? [] : [`\\usepackage[${buildLatexGeometryOptions(document.settings.pageLayout)}]{geometry}`]),
     `\\usepackage[scaled]{${fonts.latexBodyPackage}}`,
@@ -60,6 +83,7 @@ export function serializeCanonicalDocumentToLatex(
     ...(document.settings.secondaryLanguages?.length ? [`% IK secondary languages: ${document.settings.secondaryLanguages.join(", ")}`] : []),
     ...(document.settings.textDirection ? [`% IK text direction: ${document.settings.textDirection}`] : []),
     ...(document.settings.branches ?? []).map((branch) => `% IK branch: ${branch.id} ${branch.name} ${branch.exportMode}`),
+    ...buildEnabledModulePreambleLines(enabledModules, document, beamerDocument),
     ...(beamerDocument ? [
       "\\setbeamertemplate{navigation symbols}{}",
       "\\usetheme{Madrid}",
@@ -94,14 +118,14 @@ export function serializeCanonicalDocumentToLatex(
     `\\newcommand{\\IkTableCell}[2]{\\fbox{\\begin{minipage}[t][${table.cellHeightIn}in][c]{#1}#2\\end{minipage}}}`,
     `\\newcommand{\\IkFigurePlaceholder}[2]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][${figure.placeholderHeightIn}in][c]{${figure.placeholderWidthRatio}\\linewidth}\\centering #1\\end{minipage}}\\\\[0.35em]#2\\end{center}\\vspace{0.4em}}`,
     "\\newcommand{\\IkAssetFigurePlaceholder}[4]{\\par\\vspace{0.8em}\\begin{center}\\fbox{\\begin{minipage}[c][#2][c]{#1}\\centering #3\\end{minipage}}\\\\[0.35em]#4\\end{center}\\vspace{0.4em}}",
-    ...(beamerDocument ? [] : [
+    ...(beamerDocument || customHeadersFootersEnabled ? [] : [
       "\\makeatletter\\let\\ps@plain\\ps@empty\\makeatother",
       "\\pagestyle{empty}",
     ]),
     "\\begin{document}",
-    ...(beamerDocument ? [] : ["\\thispagestyle{empty}"]),
+    ...(beamerDocument || customHeadersFootersEnabled ? [] : ["\\thispagestyle{empty}"]),
     "",
-    ...serializeDocumentBody(document, labels, diagnostics, beamerDocument),
+    ...serializeDocumentBody(document, labels, diagnostics, beamerDocument, enabledModuleIds),
     "\\end{document}",
     "",
   ];
@@ -117,9 +141,11 @@ function serializeDocumentBody(
   labels: Set<string>,
   diagnostics: LatexDiagnostic[],
   beamerDocument: boolean,
+  enabledModuleIds: Set<string>,
 ): string[] {
   if (!beamerDocument) {
-    return document.blocks.flatMap((block) => serializeBlock(block, labels, diagnostics));
+    const bodyLines = document.blocks.flatMap((block) => serializeBlock(block, labels, diagnostics));
+    return wrapDocumentBodyForEnabledModules(bodyLines, enabledModuleIds);
   }
 
   return [
@@ -133,6 +159,54 @@ function serializeDocumentBody(
     "\\end{frame}",
     "",
   ];
+}
+
+function buildEnabledModulePreambleLines(
+  enabledModules: ReturnType<typeof resolveEnabledSupportedLyxModules>,
+  document: CanonicalDocument,
+  beamerDocument: boolean,
+): string[] {
+  return enabledModules.flatMap((entry) => {
+    if (entry.id === "customHeadersFooters" && !beamerDocument) {
+      return [
+        `% IK enabled module: ${entry.label}`,
+        "\\pagestyle{fancy}",
+        "\\fancyhf{}",
+        `\\fancyhead[L]{${escapeLatex(document.title)}}`,
+        "\\fancyfoot[R]{\\thepage}",
+        "\\renewcommand{\\headrulewidth}{0.4pt}",
+        "\\renewcommand{\\footrulewidth}{0pt}",
+      ];
+    }
+
+    return [`% IK enabled module: ${entry.label}`];
+  });
+}
+
+function wrapDocumentBodyForEnabledModules(bodyLines: string[], enabledModuleIds: Set<string>): string[] {
+  let wrappedLines = bodyLines;
+
+  if (enabledModuleIds.has("multicol")) {
+    wrappedLines = [
+      "\\begin{multicols}{2}",
+      "",
+      ...wrappedLines,
+      "\\end{multicols}",
+      "",
+    ];
+  }
+
+  if (enabledModuleIds.has("landscape")) {
+    wrappedLines = [
+      "\\begin{landscape}",
+      "",
+      ...wrappedLines,
+      "\\end{landscape}",
+      "",
+    ];
+  }
+
+  return wrappedLines;
 }
 
 function serializeBlock(

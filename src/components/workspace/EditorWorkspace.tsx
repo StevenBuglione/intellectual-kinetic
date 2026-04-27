@@ -85,6 +85,10 @@ import {
   coerceLyxDocumentClassToPdfPreviewable,
   pdfPreviewableLyxDocumentClassesByCategory,
 } from "@/lib/lyx/document-classes";
+import {
+  resolveEnabledSupportedLyxModules,
+  supportedLyxModulesByCategory,
+} from "@/lib/lyx/modules";
 import type { LatexCompileResult } from "@/lib/latex/compiler";
 import { serializeCanonicalDocumentToLatex } from "@/lib/latex/serializer";
 import { resolvePageLayoutMetrics } from "@/lib/layout/page-layout-contract";
@@ -113,7 +117,7 @@ type DocumentOutlineHeading = {
 
 type DocumentTab = CanonicalWorkspaceDocumentTab;
 
-type LeftWorkspacePanel = "outline" | "review" | "statistics" | "paste";
+type LeftWorkspacePanel = "outline" | "modules" | "review" | "statistics" | "paste";
 type WorkflowPanel = "find" | "history" | "spellcheck" | null;
 type WorkspaceHistoryEntry = {
   id: string;
@@ -381,6 +385,10 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     [document.settings.documentClass],
   );
   const currentDocumentClassBehavior = currentDocumentClassOption?.behavior ?? "article";
+  const enabledSupportedModules = useMemo(
+    () => resolveEnabledSupportedLyxModules(document.settings.enabledModules),
+    [document.settings.enabledModules],
+  );
   const reviewableBlocks = useMemo(() => document.blocks
     .filter((block): block is Extract<CanonicalDocument["blocks"][number], { children: CanonicalInline[] }> => "children" in block)
     .map((block) => ({
@@ -409,6 +417,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     [compiledPreview?.extractedText, document, latestPreviewResult?.extractedText],
   );
   const reviewPanelSelected = leftPanel === "review";
+  const modulesOpen = leftSidebarOpen && leftPanel === "modules";
   const reviewOpen = leftSidebarOpen && leftPanel === "review";
   const statisticsOpen = leftSidebarOpen && leftPanel === "statistics";
   const pasteOpen = leftSidebarOpen && leftPanel === "paste";
@@ -421,6 +430,9 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
   const canRedoHistory = historyIndex < historyEntries.length - 1;
   const previewImageScale = previewScale / 100;
   const activePreviewResult = latestPreviewResult ?? compiledPreview;
+  const previewParityVerified = editorParitySurface === "tex-derived"
+    ? activePreviewResult?.status === "compiled" && usingTexDerivedEditorSurface
+    : pdfTextVerification.verified;
   const pdfPreviewImageSrc = activePreviewResult?.status === "compiled" && activePreviewResult.previewImageBase64
     ? `data:image/png;base64,${activePreviewResult.previewImageBase64}`
     : null;
@@ -463,6 +475,29 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
     }
 
     openLeftPanel("review");
+  }
+
+  function toggleEnabledModule(moduleId: string, moduleLabel: string) {
+    const nextEnabledModules = new Set(documentRef.current.settings.enabledModules ?? []);
+    const enabling = !nextEnabledModules.has(moduleId);
+
+    if (enabling) {
+      nextEnabledModules.add(moduleId);
+    } else {
+      nextEnabledModules.delete(moduleId);
+    }
+
+    const nextDocument = {
+      ...documentRef.current,
+      updatedAt: new Date().toISOString(),
+      settings: {
+        ...documentRef.current.settings,
+        enabledModules: [...nextEnabledModules].sort(),
+      },
+    };
+
+    pendingHistoryLabelRef.current = `${enabling ? "Enabled" : "Disabled"} ${moduleLabel}`;
+    applyDocumentUpdate(nextDocument);
   }
 
   function beginLeftSidebarResize(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1775,6 +1810,15 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             <button
               className="ik-left-rail-button"
               type="button"
+              aria-label="Open document modules"
+              aria-pressed={modulesOpen}
+              onClick={() => openLeftPanel("modules")}
+            >
+              <Braces size={18} />
+            </button>
+            <button
+              className="ik-left-rail-button"
+              type="button"
               aria-label="Open source review"
               aria-pressed={reviewOpen}
               onClick={() => openLeftPanel("review")}
@@ -1856,6 +1900,45 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
                     <p>Headings you add to the document will appear here.</p>
                   )}
                 </nav>
+              ) : null}
+
+              {modulesOpen ? (
+                <aside className="ik-doc-side-panel ik-workflow-panel" aria-label="Document modules">
+                  <div className="ik-panel-title">
+                    <Braces size={18} />
+                    Document modules
+                  </div>
+                  <p className="ik-module-helper-copy">
+                    Enable the LyX modules that the product can round-trip through source and PDF preview.
+                  </p>
+                  {supportedLyxModulesByCategory.map((group) => (
+                    <section className="ik-module-group" key={group.category} aria-label={group.category}>
+                      <h3>{group.category}</h3>
+                      <div className="ik-module-list">
+                        {group.options.map((moduleEntry) => {
+                          const checked = enabledSupportedModules.some((entry) => entry.id === moduleEntry.id);
+                          return (
+                            <label className="ik-module-option" key={moduleEntry.id}>
+                              <input
+                                aria-label={`${checked ? "Disable" : "Enable"} ${moduleEntry.label} module`}
+                                checked={checked}
+                                type="checkbox"
+                                onChange={() => toggleEnabledModule(moduleEntry.id, moduleEntry.label)}
+                              />
+                              <div className="ik-module-copy">
+                                <span className="ik-module-label">{moduleEntry.label}</span>
+                                <span>{moduleEntry.description}</span>
+                                {moduleEntry.packages.length > 0 ? (
+                                  <code>{moduleEntry.packages.join(", ")}</code>
+                                ) : null}
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </aside>
               ) : null}
 
               {reviewOpen ? (
@@ -2399,6 +2482,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
               style={pageLayoutStyle}
               data-document-class={document.settings.documentClass}
               data-document-behavior={currentDocumentClassBehavior}
+              data-enabled-modules={enabledSupportedModules.map((entry) => entry.id).join(" ")}
             >
               <div className="ik-doc-ruler" aria-label="Document ruler">
                 <div className="ik-doc-ruler-track">
@@ -2522,7 +2606,7 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
                   +
                 </button>
               </div>
-              {activePreviewResult?.status === "compiled" && pdfTextVerification.verified ? (
+              {activePreviewResult?.status === "compiled" && previewParityVerified ? (
                 <span
                   className="ik-pdf-verification"
                   role="status"
@@ -2536,7 +2620,10 @@ export function EditorWorkspace({ initialDocument }: EditorWorkspaceProps) {
             <p className="ik-diagnostic-count">
               {(activePreviewResult?.diagnostics.length ?? latex.diagnostics.length)} diagnostics
             </p>
-            {activePreviewResult?.status === "compiled" && !pdfTextVerification.verified && activePreviewResult.extractedText ? (
+            {activePreviewResult?.status === "compiled"
+              && !previewParityVerified
+              && activePreviewResult.extractedText
+              && editorParitySurface !== "tex-derived" ? (
               <div className="ik-pdf-verification ik-pdf-verification-warning" aria-label="PDF text verification">
                 <span>PDF text differs from editor</span>
               </div>

@@ -22,4 +22,22 @@ describe("editor parity surface selection", () => {
     expect(resolveEditorParitySurface(gateTwoScholarlyFixture)).toBe("tex-derived");
     expect(resolveEditorParitySurface(gateThreeLayoutFixture)).toBe("tex-derived");
   });
+
+  it("moves layout-affecting enabled LyX modules onto the TeX-derived surface", () => {
+    expect(resolveEditorParitySurface({
+      ...restorationFoundationFixture,
+      settings: {
+        ...restorationFoundationFixture.settings,
+        enabledModules: ["multicol"],
+      },
+    })).toBe("tex-derived");
+
+    expect(resolveEditorParitySurface({
+      ...restorationFoundationFixture,
+      settings: {
+        ...restorationFoundationFixture.settings,
+        enabledModules: ["customHeadersFooters"],
+      },
+    })).toBe("tex-derived");
+  });
 });

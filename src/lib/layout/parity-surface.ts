@@ -1,8 +1,13 @@
 import type { CanonicalBlock, CanonicalDocument, CanonicalInline } from "@/lib/editor-core/types";
+import { resolveEnabledSupportedLyxModules } from "@/lib/lyx/modules";
 
 export type EditorParitySurface = "browser-editor" | "tex-derived";
 
 export function resolveEditorParitySurface(document: CanonicalDocument): EditorParitySurface {
+  if (documentUsesTexDerivedModuleSurface(document)) {
+    return "tex-derived";
+  }
+
   if (document.blocks.some(blockRequiresTexDerivedSurface)) {
     return "tex-derived";
   }
@@ -49,4 +54,13 @@ function inlineRequiresTexDerivedSurface(inline: CanonicalInline): boolean {
   }
 
   return false;
+}
+
+function documentUsesTexDerivedModuleSurface(document: CanonicalDocument): boolean {
+  const enabledModules = resolveEnabledSupportedLyxModules(document.settings.enabledModules);
+  return enabledModules.some((entry) => (
+    entry.effect === "multicol"
+    || entry.effect === "landscape"
+    || entry.effect === "headers-footers"
+  ));
 }

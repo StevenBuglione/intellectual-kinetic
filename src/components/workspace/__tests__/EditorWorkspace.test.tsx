@@ -139,6 +139,70 @@ describe("EditorWorkspace", () => {
     });
   });
 
+  it("toggles supported LyX modules from the left rail and updates the generated LaTeX", async () => {
+    const { container } = render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Show source" }));
+    await userEvent.click(screen.getByRole("button", { name: "Open document modules" }));
+
+    const modulesPanel = screen.getByRole("complementary", { name: "Document modules" });
+    expect(within(modulesPanel).getByText("AMS Theorems")).toBeInTheDocument();
+    expect(within(modulesPanel).getByText("Custom Header/Footer Text")).toBeInTheDocument();
+    expect(within(modulesPanel).getByText("Multiple Columns")).toBeInTheDocument();
+
+    const sourcePanel = screen.getByRole("complementary", { name: "Generated LaTeX source" });
+    const multicolCheckbox = within(modulesPanel).getByRole("checkbox", { name: "Enable Multiple Columns module" });
+
+    await userEvent.click(multicolCheckbox);
+
+    await waitFor(() => {
+      expect(within(sourcePanel).getByText("\\usepackage{multicol}")).toBeInTheDocument();
+      expect(within(sourcePanel).getByText("\\begin{multicols}{2}")).toBeInTheDocument();
+    });
+    expect(container.querySelector(".ik-doc-page-stack")).toHaveAttribute("data-enabled-modules", "multicol");
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Disable Multiple Columns module" }));
+
+    await waitFor(() => {
+      expect(within(sourcePanel).queryByText("\\usepackage{multicol}")).not.toBeInTheDocument();
+      expect(within(sourcePanel).queryByText("\\begin{multicols}{2}")).not.toBeInTheDocument();
+    });
+    expect(container.querySelector(".ik-doc-page-stack")).toHaveAttribute("data-enabled-modules", "");
+  });
+
+  it("uses the TeX-derived editor surface for layout-affecting modules so PDF parity stays verified", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      status: "compiled",
+      artifactName: "fixture-restoration-foundation-preview.pdf",
+      pdfBase64: "JVBERi0xLjQ=",
+      previewImageBase64: "iVBORw0KGgo=",
+      previewPageImageBase64: ["iVBORw0KGgo="],
+      log: "compiled",
+      diagnostics: [],
+      extractedText: [
+        "A Treatise on Motion",
+        "Uniform motion preserves proportional distance.",
+        "Let v denote velocity and cite @newton1687.",
+        "s = vt",
+      ].join("\n\n"),
+    }), { status: 200, headers: { "content-type": "application/json" } })));
+
+    render(<EditorWorkspace initialDocument={restorationFoundationFixture} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Show source" }));
+    await userEvent.click(screen.getByRole("button", { name: "Open document modules" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Enable Multiple Columns module" }));
+
+    const sourcePanel = screen.getByRole("complementary", { name: "Generated LaTeX source" });
+    expect(await within(sourcePanel).findByText("\\usepackage{multicol}")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /pdf preview/i }));
+
+    expect(await screen.findByRole("region", { name: "TeX page box editor surface" })).toBeInTheDocument();
+    expect(await screen.findByLabelText("PDF preview verified")).toBeInTheDocument();
+    expect(screen.queryByLabelText("PDF text verification")).not.toBeInTheDocument();
+  });
+
   it("opens spellcheck and thesaurus providers and applies spelling corrections", async () => {
     render(<EditorWorkspace initialDocument={createSpellcheckFixture()} />);
 

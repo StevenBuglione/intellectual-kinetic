@@ -134,6 +134,28 @@ describe("deterministic LaTeX serializer", () => {
     expect(result.source).toContain("\\usepackage{pgf}");
   });
 
+  it("emits supported LyX modules as package-driven preamble and body changes", () => {
+    const result = serializeCanonicalDocumentToLatex({
+      ...restorationFoundationFixture,
+      settings: {
+        ...restorationFoundationFixture.settings,
+        enabledModules: ["customHeadersFooters", "multicol"],
+      },
+    });
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.source).toContain("\\usepackage{fancyhdr}");
+    expect(result.source).toContain("\\usepackage{multicol}");
+    expect(result.source).toContain("% IK enabled module: Custom Header/Footer Text");
+    expect(result.source).toContain("% IK enabled module: Multiple Columns");
+    expect(result.source).toContain("\\pagestyle{fancy}");
+    expect(result.source).toContain("\\fancyhead[L]{Restoration Foundation Fixture}");
+    expect(result.source).toContain("\\begin{multicols}{2}");
+    expect(result.source).toContain("\\end{multicols}");
+    expect(result.source).not.toContain("\\pagestyle{empty}");
+    expect(result.source).not.toContain("\\thispagestyle{empty}");
+  });
+
   it("emits a diagnostic for DocBook/XML-oriented LyX classes", () => {
     const result = serializeCanonicalDocumentToLatex({
       ...restorationFoundationFixture,
